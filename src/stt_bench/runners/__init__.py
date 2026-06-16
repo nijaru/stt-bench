@@ -40,10 +40,14 @@ def register_runner(model_prefix: str):
 def get_runner(model_id: str, device: str = "auto") -> RunnerProtocol:
     """Get a runner instance for the given model ID.
 
-    Matches model_id against registered prefixes.
+    Matches model_id against registered prefixes (case-insensitive).
+    Checks both startswith and contains for flexibility.
     """
+    model_lower = model_id.lower()
     for prefix, cls in _RUNNERS.items():
-        if model_id.startswith(prefix):
+        prefix_lower = prefix.lower()
+        # Match: model starts with prefix, or model contains prefix after /
+        if model_lower.startswith(prefix_lower) or "/" + prefix_lower in model_lower:
             return cls(model_id=model_id, device=device)
 
     # Fallback: try whisper runner for any HF model
@@ -52,4 +56,27 @@ def get_runner(model_id: str, device: str = "auto") -> RunnerProtocol:
     return WhisperRunner(model_id=model_id, device=device)
 
 
-__all__ = ["RunnerProtocol", "get_runner", "register_runner"]
+class BaseRunner(RunnerProtocol):
+    """Base class with common runner functionality."""
+
+    def __init__(self, model_id: str = "", device: str = "auto", **kwargs):
+        self.model_id = model_id
+        self.device = device
+
+    def _resolve_device(self) -> str:
+        """Resolve the device to use for inference."""
+        import torch
+
+        if self.device == "auto":
+            if torch.cuda.is_available():
+                return "cuda"
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                return "mps"
+            return "cpu"
+        return self.device
+
+
+# Import runner modules to trigger registration
+from . import whisper_runner, cohere_runner, qwen3_asr_runner, parakeet_runner  # noqa: F401
+
+__all__ = ["RunnerProtocol", "BaseRunner", "get_runner", "register_runner"]
