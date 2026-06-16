@@ -12,6 +12,8 @@ dependencies = [
     "librosa>=0.10",
     "numpy>=1.26",
     "requests>=2.31",
+    "scipy>=1.11",
+    "datasets>=2.19",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +21,7 @@ local = [
     "torch>=2.3",
     "torchaudio>=2.3",
     "transformers>=4.41",
+    "accelerate>=0.30",
 ]
 api = [
     "cohere>=5.5",
@@ -28,8 +31,11 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.4",
 ]
+effects = [
+    "pedalboard>=0.9",
+]
 all = [
-    "stt-bench[local,api,dev]",
+    "stt-bench[local,api,dev,effects]",
 ]
 
 [project.scripts]
