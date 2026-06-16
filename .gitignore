@@ -216,3 +216,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# STT-Bench: no audio or model files in repo
+data/generated/
+data/assets/
+results/working/
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.opus
+models/
+.cache/

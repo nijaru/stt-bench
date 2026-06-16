@@ -1,0 +1,2 @@
+# Override global no-build for this project (needs hatchling to build)
+no-build = false
