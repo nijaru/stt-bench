@@ -1,6 +1,6 @@
-# stt-eval
+# stt-bench
 
-Real-world speech-to-text evaluation and benchmarking across voices, acoustic conditions, microphones, and models.
+Real-world speech-to-text benchmark across voices, acoustic conditions, microphones, and models.
 
 ## Goal
 
