@@ -17,6 +17,47 @@ def main():
 
 @main.command()
 @click.option(
+    "--output-dir", default="~/.cache/stt-bench/assets", type=click.Path(),
+    help="Directory to store downloaded assets.",
+)
+def fetch_assets(output_dir):
+    """Download noise and RIR assets from Hugging Face."""
+    from .data.fetch_assets import fetch_all_assets
+
+    output_path = Path(output_dir).expanduser()
+    click.echo(f"Downloading assets to {output_path}")
+    paths = fetch_all_assets(output_path)
+    click.echo(f"Noise: {paths['noise']}")
+    click.echo(f"RIRs: {paths['rir']}")
+
+
+@main.command()
+@click.option("--n-clips", default=30, type=int, help="Number of clips to select.")
+@click.option("--min-duration", default=10.0, type=float, help="Min clip duration (seconds).")
+@click.option("--max-duration", default=30.0, type=float, help="Max clip duration (seconds).")
+@click.option("--seed", default=42, type=int, help="Random seed.")
+@click.option(
+    "--output", default="data/manifests/sources-v0.jsonl", type=click.Path(),
+    help="Output manifest path.",
+)
+def select_sources(n_clips, min_duration, max_duration, seed, output):
+    """Select source clips from LibriSpeech test-clean."""
+    from .data.select_sources import select_librispeech_clips, write_source_manifest
+
+    click.echo(f"Selecting {n_clips} clips from LibriSpeech test-clean...")
+    clips = select_librispeech_clips(
+        n_clips=n_clips,
+        min_duration=min_duration,
+        max_duration=max_duration,
+        seed=seed,
+    )
+    write_source_manifest(clips, Path(output))
+    click.echo(f"Speakers: {len(set(c.speaker_id for c in clips if c.speaker_id))}")
+    click.echo(f"Duration: {sum(c.duration_seconds for c in clips):.0f}s total")
+
+
+@main.command()
+@click.option(
     "--manifest", required=True, type=click.Path(exists=True),
     help="Source manifest JSONL.",
 )
