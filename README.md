@@ -8,17 +8,23 @@ Existing STT benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) evaluate cle
 
 ## What it does
 
-Tests 4 SOTA STT models under 10 acoustic conditions:
+Tests 4 SOTA STT models under 13 acoustic conditions:
 
-| Condition | Description |
-|-----------|-------------|
-| `clean` | No degradation (baseline) |
-| `noise_cafe_snr_15/10` | Restaurant noise at 15/10 dB SNR |
-| `noise_babble_snr_15/10` | Crowd noise at 15/10 dB SNR |
-| `reverb_office/hall` | Room reverb (RT60 ~0.4-0.6s / ~0.8-1.2s) |
-| `codec_telephony` | G.711 mu-law (8kHz) |
-| `codec_lowbitrate` | MP3 32kbps |
-| `mic_cheap` | Bandpass 200-6kHz + uneven EQ |
+| # | Condition | Real-world scenario |
+|---|-----------|---------------------|
+| 1 | `clean` | Quiet recording environment |
+| 2 | `noise_cafe_snr_15` | Coffee shop (moderate) |
+| 3 | `noise_cafe_snr_10` | Busy restaurant (noisy) |
+| 4 | `noise_traffic_snr_15` | Walking near road |
+| 5 | `noise_traffic_snr_10` | Busy street |
+| 6 | `reverb_office` | Small room (office, home) |
+| 7 | `reverb_hall` | Large space (conference hall) |
+| 8 | `codec_telephony` | Phone call (G.711 mu-law) |
+| 9 | `codec_opus_low` | Voice message (Opus 6kbps) |
+| 10 | `codec_aac_low` | Video call (AAC 32kbps) |
+| 11 | `mic_phone` | Smartphone recording |
+| 12 | `mic_laptop` | Laptop internal mic |
+| 13 | `noise_hvac` | Office HVAC/fan |
 
 All transforms use real noise recordings (MUSAN) and real room impulse responses (OpenSLR-28). No synthetic artifacts.
 

@@ -57,18 +57,25 @@ Some clips may have minor existing background noise. This is acceptable: the con
 
 Conditions use real-world noise recordings and real impulse responses, applied programmatically. This avoids synthetic artifacts while keeping the pipeline deterministic and reproducible.
 
-| Condition ID | Type | Assets | Tool |
-| --- | --- | --- | --- |
-| `clean` | None | — | — |
-| `noise_cafe_snr_15` | Additive noise | MUSAN noise recordings | audiomentations `AddBackgroundNoise` |
-| `noise_cafe_snr_10` | Additive noise | MUSAN | audiomentations |
-| `noise_babble_snr_15` | Additive noise | MUSAN babble | audiomentations |
-| `noise_babble_snr_10` | Additive noise | MUSAN babble | audiomentations |
-| `reverb_office` | Convolution | OpenSLR-28 RIRs | pyroomacoustics or torchaudio |
-| `reverb_hall` | Convolution | OpenSLR-28 RIRs | pyroomacoustics or torchaudio |
-| `codec_telephony` | Codec | — | torchaudio (mu-law) or pedalboard |
-| `codec_lowbitrate` | Codec | — | pedalboard MP3Compressor |
-| `mic_cheap` | Filtering | — | pedalboard EQ/bandpass |
+Each condition maps to a real-world STT use case. We test 13 conditions across 4 categories:
+
+| # | Condition ID | Type | Real-world scenario | Assets |
+|---|--------------|------|---------------------|--------|
+| 1 | `clean` | Baseline | Quiet recording environment | — |
+| 2 | `noise_cafe_snr_15` | Noise | Coffee shop (moderate) | MUSAN noise recordings |
+| 3 | `noise_cafe_snr_10` | Noise | Busy restaurant (noisy) | MUSAN |
+| 4 | `noise_traffic_snr_15` | Noise | Walking near road | MUSAN |
+| 5 | `noise_traffic_snr_10` | Noise | Busy street | MUSAN |
+| 6 | `reverb_office` | Reverb | Small room (office, home) | OpenSLR-28 RIRs |
+| 7 | `reverb_hall` | Reverb | Large space (conference hall) | OpenSLR-28 RIRs |
+| 8 | `codec_telephony` | Codec | Phone call (G.711 mu-law) | — |
+| 9 | `codec_opus_low` | Codec | Voice message (Opus 6kbps) | — |
+| 10 | `codec_aac_low` | Codec | Video call (AAC 32kbps) | — |
+| 11 | `mic_phone` | Microphone | Smartphone recording | — |
+| 12 | `mic_laptop` | Microphone | Laptop internal mic | — |
+| 13 | `noise_hvac` | Noise | Office HVAC/fan | MUSAN |
+
+Two noise levels per type (e.g., cafe at 15dB and 10dB SNR) give us a degradation curve to see how models degrade as noise increases.
 
 ### SNR measurement
 
