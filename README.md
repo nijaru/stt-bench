@@ -1,52 +1,107 @@
-# stt-bench
+# STT-Bench
 
-Real-world speech-to-text benchmark across voices, acoustic conditions, microphones, and models.
+Real-world robustness benchmarks for speech-to-text systems.
 
-## Goal
+## The problem
 
-Build a practical benchmark for local and API speech-to-text systems that answers questions standard WER leaderboards miss:
+Existing STT benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) evaluate clean audio. Production audio is noisy, reverberant, compressed, and recorded on cheap hardware. STT-Bench measures this gap.
 
-- Which voices and accents degrade first?
-- How much do busy rooms, music beds, reverb, phone codecs, and cheap microphones hurt accuracy?
-- Which models are fastest at acceptable accuracy on local hardware?
-- Do quantized models preserve transcription quality under bad conditions?
+## What it does
 
-## Evaluation axes
+Tests 4 SOTA STT models under 10 acoustic conditions:
 
-### Voices
+| Condition | Description |
+|-----------|-------------|
+| `clean` | No degradation (baseline) |
+| `noise_cafe_snr_15/10` | Restaurant noise at 15/10 dB SNR |
+| `noise_babble_snr_15/10` | Crowd noise at 15/10 dB SNR |
+| `reverb_office/hall` | Room reverb (RT60 ~0.4-0.6s / ~0.8-1.2s) |
+| `codec_telephony` | G.711 mu-law (8kHz) |
+| `codec_lowbitrate` | MP3 32kbps |
+| `mic_cheap` | Bandpass 200-6kHz + uneven EQ |
 
-- accents and dialects
-- speaking pace
-- pitch range
-- age brackets where licensing allows
-- read speech, conversational speech, and narration
+All transforms use real noise recordings (MUSAN) and real room impulse responses (OpenSLR-28). No synthetic artifacts.
 
-### Conditions
+## Models (v0)
 
-- clean close-mic reference
-- busy room beds layered under speech
-- background music and crowd noise
-- room reverb and far-field recordings
-- microphone EQ curves and bandwidth limits
-- codec compression and 8 kHz telephony
-- controlled SNR sweeps for calibration
+| Model | Params | Clean WER | License |
+|-------|--------|-----------|---------|
+| Whisper Large V3 | 1.55B | 7.44% | MIT |
+| Cohere Transcribe | 2B | 5.42% | Apache 2.0 |
+| Qwen3-ASR | 1.7B | 5.76% | Apache 2.0 |
+| Parakeet TDT 1.1B | 1.1B | ~8.0% | CC-BY-4.0 |
 
-### Metrics
+## Quickstart
 
-- word error rate (WER)
-- character error rate (CER)
-- real-time factor / throughput (RTFx)
-- latency where available
-- peak VRAM / memory
-- hallucination and omission counts where measurable
+```bash
+# Install
+git clone https://github.com/nijaru/stt-bench.git
+cd stt-bench
+uv sync
+uv sync --extra local  # for local GPU inference
 
-## Initial scope
+# Download assets
+stt-bench fetch-assets
 
-Start with a small, reproducible harness:
+# Select source clips
+stt-bench select-sources --n-clips 30
 
-1. Prepare clean reference clips with transcripts.
-2. Generate condition variants from licensed noise beds and DSP transforms.
-3. Run multiple STT backends against the same manifest.
-4. Produce per-condition and aggregate reports.
+# Generate condition variants
+stt-bench prepare --manifest data/manifests/sources-v0.jsonl --output data/manifests/conditions-v0.jsonl
 
-Python is the primary implementation language because the audio and ML tooling ecosystem is strongest there.
+# Run a model
+stt-bench run --manifest data/manifests/conditions-v0.jsonl --model openai/whisper-large-v3 --output results/whisper-v3
+
+# Score results
+stt-bench score --results-dir results/whisper-v3 --manifest data/manifests/conditions-v0.jsonl
+```
+
+## How it works
+
+```
+Source clips (LibriSpeech, downloaded on demand)
+    → Condition generation (real noise + real RIRs + DSP transforms)
+    → Model runners (HF models with pinned revisions)
+    → Scoring (jiwer WER/CER, conservative normalization)
+    → Reporting (tables, markdown)
+```
+
+No audio or model weights stored in the repo. Everything downloaded on demand.
+
+## Project structure
+
+```
+src/stt_bench/
+    cli.py              # Click CLI
+    manifest.py         # JSONL manifest schemas
+    scoring/            # WER/CER with jiwer
+    conditions/         # Audio transforms (noise, reverb, codec, mic)
+    runners/            # Model runners (Whisper, Cohere, Qwen3, Parakeet)
+    data/               # Asset downloader, source selector
+    reports/            # Tables and plots
+data/
+    manifests/          # Source + condition metadata (committed)
+results/                # Run outputs (selectively committed)
+docs/
+    methodology.md      # Full methodology and reproducibility docs
+```
+
+## Adding a model
+
+1. Create `src/stt_bench/runners/<model>.py`
+2. Implement the runner protocol (read manifest, transcribe, write hypothesis JSONL)
+3. Register in CLI
+4. Run against existing condition manifest
+
+See `docs/methodology.md` for full protocol specification.
+
+## License
+
+Apache 2.0. See [LICENSE](LICENSE).
+
+## Acknowledgments
+
+- [MUSAN](https://www.openslr.org/17/) — noise corpus (CC BY 4.0)
+- [OpenSLR-28](https://www.openslr.org/28/) — room impulse responses (Apache 2.0)
+- [LibriSpeech](https://www.openslr.org/12/) — source speech (CC BY 4.0)
+- [jiwer](https://github.com/jitsi/jiwer) — WER/CER computation

@@ -228,3 +228,13 @@ results/working/
 *.opus
 models/
 .cache/
+
+# Agent/tooling internals (local development only)
+.pi/
+ai/
+AGENTS.md
+CLAUDE.md
+handoff.md
+.tasks/
+.pgoal/
+benchmark.md
