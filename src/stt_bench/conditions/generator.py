@@ -15,17 +15,27 @@ from .noise import apply_noise_condition
 from .reverb import apply_reverb_condition
 
 # Condition definitions: (condition_id, transform_type, params)
+# Each condition maps to a real-world STT use case.
 CONDITIONS = {
+    # Baseline
     "clean": None,
-    "noise_cafe_snr_15": {"type": "noise", "snr_db": 15},
-    "noise_cafe_snr_10": {"type": "noise", "snr_db": 10},
-    "noise_babble_snr_15": {"type": "noise", "snr_db": 15},
-    "noise_babble_snr_10": {"type": "noise", "snr_db": 10},
+    # Background noise (2 types × 2 SNR levels = degradation curve)
+    "noise_cafe_snr_15": {"type": "noise", "noise_type": "cafe", "snr_db": 15},
+    "noise_cafe_snr_10": {"type": "noise", "noise_type": "cafe", "snr_db": 10},
+    "noise_traffic_snr_15": {"type": "noise", "noise_type": "traffic", "snr_db": 15},
+    "noise_traffic_snr_10": {"type": "noise", "noise_type": "traffic", "snr_db": 10},
+    # Room acoustics (2 room sizes)
     "reverb_office": {"type": "reverb", "rir_type": "office"},
     "reverb_hall": {"type": "reverb", "rir_type": "hall"},
+    # Codec compression (3 common codecs)
     "codec_telephony": {"type": "codec_mulaw"},
-    "codec_lowbitrate": {"type": "codec_mp3", "bitrate_kbps": 32},
-    "mic_cheap": {"type": "mic"},
+    "codec_opus_low": {"type": "codec_opus", "bitrate_kbps": 6},
+    "codec_aac_low": {"type": "codec_aac", "bitrate_kbps": 32},
+    # Microphone quality (2 device types)
+    "mic_phone": {"type": "mic", "mic_type": "phone"},
+    "mic_laptop": {"type": "mic", "mic_type": "laptop"},
+    # Environmental (HVAC/office noise)
+    "noise_hvac": {"type": "noise", "noise_type": "hvac", "snr_db": 20},
 }
 
 SAMPLE_RATE = 16000
@@ -66,19 +76,21 @@ def _load_audio(uri: str, cache_dir: Path) -> torch.Tensor:
         return waveform
 
 
-def _pick_noise_asset(condition_id: str, assets_dir: Path) -> str | None:
-    """Pick a noise recording for the given condition. Returns path or None."""
-    if "cafe" in condition_id:
-        noise_dir = assets_dir / "musan" / "noise"
-    elif "babble" in condition_id:
-        noise_dir = assets_dir / "musan" / "speech"
-    else:
-        return None
+def _pick_noise_asset(noise_type: str, assets_dir: Path) -> str | None:
+    """Pick a noise recording for the given noise type. Returns path or None.
 
+    Noise types:
+    - cafe: restaurant/cafe ambiance (MUSAN noise category)
+    - traffic: road/traffic noise (MUSAN noise category)
+    - hvac: office HVAC/fan noise (MUSAN noise category)
+    """
+    # MUSAN has noise files in noise/free-sound/ and noise/sound-bible/
+    noise_dir = assets_dir / "noise" / "musan"
     if not noise_dir.exists():
         return None
 
-    # Pick first available noise file
+    # For v0, we use the same noise source for all types
+    # In v1, we'd filter by metadata or use separate noise corpora
     for f in sorted(noise_dir.iterdir()):
         if f.suffix in (".wav", ".flac", ".mp3"):
             return str(f)
@@ -136,7 +148,7 @@ def generate_variants(
             transforms = []
 
             if cond_def["type"] == "noise":
-                noise_path = _pick_noise_asset(cond_id, assets_dir)
+                noise_path = _pick_noise_asset(cond_def["noise_type"], assets_dir)
                 if noise_path:
                     result, param = apply_noise_condition(
                         result, noise_path, cond_def["snr_db"],
@@ -163,8 +175,28 @@ def generate_variants(
                 )
                 transforms.append(param)
 
+            elif cond_def["type"] == "codec_opus":
+                from .codec import apply_opus_codec
+                result, param = apply_opus_codec(
+                    result, sample_rate=SAMPLE_RATE,
+                    bitrate_kbps=cond_def["bitrate_kbps"],
+                )
+                transforms.append(param)
+
+            elif cond_def["type"] == "codec_aac":
+                from .codec import apply_aac_codec
+                result, param = apply_aac_codec(
+                    result, sample_rate=SAMPLE_RATE,
+                    bitrate_kbps=cond_def["bitrate_kbps"],
+                )
+                transforms.append(param)
+
             elif cond_def["type"] == "mic":
-                result, param = apply_cheap_mic(result, sample_rate=SAMPLE_RATE)
+                from .mic import apply_mic_profile
+                result, param = apply_mic_profile(
+                    result, mic_type=cond_def["mic_type"],
+                    sample_rate=SAMPLE_RATE,
+                )
                 transforms.append(param)
 
             # Peak normalize to prevent clipping

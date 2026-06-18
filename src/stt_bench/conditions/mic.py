@@ -78,3 +78,64 @@ def apply_cheap_mic(
     )
 
     return result, param
+
+
+def apply_mic_profile(
+    speech: torch.Tensor,
+    mic_type: str = "phone",
+    sample_rate: int = 16000,
+) -> tuple[torch.Tensor, TransformParam]:
+    """Apply microphone frequency response profile.
+
+    Mic types:
+    - phone: smartphone mic (decent quality, limited low-end)
+    - laptop: laptop internal mic (cheap, resonant, mono)
+    """
+    if mic_type == "phone":
+        # Smartphone mic: decent quality, slight low-end rolloff
+        # -3dB at 100Hz, flat mids, slight high-freq rolloff above 12kHz
+        low_freq = 100.0
+        high_freq = 12000.0
+        mid_dip_center = None  # No mid dip for phone
+    else:  # laptop
+        # Laptop internal mic: cheap, resonant, mono
+        # -3dB at 200Hz, -6dB at 100Hz, resonant peak at 3-4kHz, rolloff above 8kHz
+        low_freq = 200.0
+        high_freq = 8000.0
+        mid_dip_center = 3500.0  # Resonant peak
+
+    # Apply bandpass
+    filtered = apply_bandpass(speech, low_freq=low_freq, high_freq=high_freq, sample_rate=sample_rate)
+
+    # Apply mid-frequency resonance if specified
+    if mid_dip_center:
+        try:
+            import numpy as np
+            from scipy.signal import butter, sosfilt
+
+            nyq = sample_rate / 2
+            # Peaking EQ for resonance
+            freq_low = mid_dip_center * 0.8
+            freq_high = mid_dip_center * 1.2
+            sos_peak = butter(2, [freq_low / nyq, freq_high / nyq], btype="band", output="sos")
+            audio_np = filtered.squeeze().numpy().astype(np.float32)
+            peaked = sosfilt(sos_peak, audio_np)
+            # Blend: 80% filtered + 20% with peak
+            result_np = 0.8 * audio_np + 0.2 * peaked
+            result = torch.from_numpy(result_np).unsqueeze(0).to(speech.dtype)
+        except ImportError:
+            result = filtered
+    else:
+        result = filtered
+
+    param = TransformParam(
+        type="mic_profile",
+        params={
+            "mic_type": mic_type,
+            "low_freq_hz": low_freq,
+            "high_freq_hz": high_freq,
+            "mid_resonance_hz": mid_dip_center,
+        },
+    )
+
+    return result, param
