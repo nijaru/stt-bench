@@ -5,7 +5,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "accelerate>=1.0",
     "stt-bench",
-    "torch>=2.3",
+    "torch>=2.12.1",
     "transformers>=5.0",
 ]
 
