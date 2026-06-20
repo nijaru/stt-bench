@@ -13,6 +13,20 @@ import torchaudio
 from ..manifest import TransformParam
 
 
+def _load_noise(noise_path: str) -> tuple[torch.Tensor, int]:
+    """Load noise file, return (waveform, sample_rate) for torchaudio compat."""
+    import soundfile as sf
+
+    info = sf.info(noise_path)
+    sr = info.samplerate
+    audio, _ = sf.read(noise_path, dtype="float32")
+    if audio.ndim == 1:
+        audio = audio[:, None]
+    else:
+        audio = audio.T
+    return torch.from_numpy(audio.copy()).float(), sr
+
+
 def compute_rms(waveform: torch.Tensor) -> float:
     """Compute RMS amplitude of a waveform."""
     return float(torch.sqrt(torch.mean(waveform**2)))
@@ -73,7 +87,7 @@ def apply_noise_condition(
 
     Returns (mixed_waveform, transform_param).
     """
-    noise, noise_sr = torchaudio.load(noise_path)
+    noise, noise_sr = _load_noise(noise_path)
     if noise_sr != sample_rate:
         noise = torchaudio.functional.resample(noise, noise_sr, sample_rate)
 

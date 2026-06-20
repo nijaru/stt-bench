@@ -12,7 +12,7 @@ from pathlib import Path
 import soundfile as sf
 
 from ..manifest import ConditionVariant, Hypothesis
-from . import register_runner, BaseRunner
+from . import BaseRunner, register_runner
 
 
 @register_runner("qwen3-asr")

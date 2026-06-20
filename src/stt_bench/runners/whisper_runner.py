@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-import numpy as np
 import soundfile as sf
 
 from ..manifest import ConditionVariant, Hypothesis

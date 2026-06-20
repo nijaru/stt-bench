@@ -105,7 +105,9 @@ def apply_mic_profile(
         mid_dip_center = 3500.0  # Resonant peak
 
     # Apply bandpass
-    filtered = apply_bandpass(speech, low_freq=low_freq, high_freq=high_freq, sample_rate=sample_rate)
+    filtered = apply_bandpass(
+        speech, low_freq=low_freq, high_freq=high_freq, sample_rate=sample_rate,
+    )
 
     # Apply mid-frequency resonance if specified
     if mid_dip_center:

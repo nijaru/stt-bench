@@ -20,13 +20,15 @@ def main():
     "--output-dir", default="~/.cache/stt-bench/assets", type=click.Path(),
     help="Directory to store downloaded assets.",
 )
-def fetch_assets(output_dir):
+@click.option("--n-noise", default=50, type=int, help="Number of noise files to download.")
+@click.option("--n-rir", default=20, type=int, help="Number of RIR files to download.")
+def fetch_assets(output_dir, n_noise, n_rir):
     """Download noise and RIR assets from Hugging Face."""
     from .data.fetch_assets import fetch_all_assets
 
     output_path = Path(output_dir).expanduser()
     click.echo(f"Downloading assets to {output_path}")
-    paths = fetch_all_assets(output_path)
+    paths = fetch_all_assets(output_path, n_noise=n_noise, n_rir=n_rir)
     click.echo(f"Noise: {paths['noise']}")
     click.echo(f"RIRs: {paths['rir']}")
 

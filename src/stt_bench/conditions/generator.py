@@ -8,9 +8,9 @@ from pathlib import Path
 import torch
 import torchaudio
 
+from ..audio_io import save_audio
 from ..manifest import ConditionVariant, SourceClip, write_manifest
 from .codec import apply_mp3_codec, apply_mulaw_codec
-from .mic import apply_cheap_mic
 from .noise import apply_noise_condition
 from .reverb import apply_reverb_condition
 
@@ -47,12 +47,34 @@ def _hash_audio(waveform: torch.Tensor) -> str:
 
 
 def _load_audio(uri: str, cache_dir: Path) -> torch.Tensor:
-    """Load audio from HF dataset URI or local path.
+    """Load audio from HTTP URL, HF dataset URI, or local path.
 
-    URI format: hf://dataset_name/split/index  or local path.
+    URI format:
+    - https://...     : direct download (cached to cache_dir)
+    - hf://dataset/split/index : HF dataset streaming
+    - local path     : soundfile load
     """
-    if uri.startswith("hf://"):
-        # Parse HF URI: hf://dataset_name/split/index
+    from ..audio_io import load_audio
+
+    if uri.startswith("http://") or uri.startswith("https://"):
+        # Download with caching
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        import hashlib
+
+        url_hash = hashlib.sha256(uri.encode()).hexdigest()[:16]
+        cached_path = cache_dir / f"source_{url_hash}.flac"
+
+        if not cached_path.exists():
+            import requests
+
+            response = requests.get(uri, timeout=60)
+            response.raise_for_status()
+            with open(cached_path, "wb") as f:
+                f.write(response.content)
+
+        return load_audio(str(cached_path), target_sr=SAMPLE_RATE)
+
+    elif uri.startswith("hf://"):
         parts = uri.replace("hf://", "").split("/")
         dataset_name = parts[0]
         split = parts[1] if len(parts) > 1 else "test"
@@ -70,10 +92,7 @@ def _load_audio(uri: str, cache_dir: Path) -> torch.Tensor:
             waveform = torchaudio.functional.resample(waveform, sr, SAMPLE_RATE)
         return waveform
     else:
-        waveform, sr = torchaudio.load(uri)
-        if sr != SAMPLE_RATE:
-            waveform = torchaudio.functional.resample(waveform, sr, SAMPLE_RATE)
-        return waveform
+        return load_audio(uri, target_sr=SAMPLE_RATE)
 
 
 def _pick_noise_asset(noise_type: str, assets_dir: Path) -> str | None:
@@ -98,20 +117,27 @@ def _pick_noise_asset(noise_type: str, assets_dir: Path) -> str | None:
 
 
 def _pick_rir(rir_type: str, assets_dir: Path) -> str | None:
-    """Pick a room impulse response. Returns path or None."""
-    rir_dir = assets_dir / "slr28"
+    """Pick a room impulse response. Returns path or None.
+
+    For v0, picks RIRs by index (office=earlier, hall=later).
+    TODO: filter by RT60 metadata when available.
+    """
+    rir_dir = assets_dir / "rir" / "rirs-noises"
     if not rir_dir.exists():
         return None
 
-    # Filter by RT60 if metadata available, otherwise pick first
-    rirs = sorted(rir_dir.glob("*.wav"))
+    # Support both .wav and .flac
+    rirs = sorted(list(rir_dir.glob("*.wav")) + list(rir_dir.glob("*.flac")))
     if not rirs:
         return None
 
+    # For v0, pick by index. office=first half, hall=second half
+    # TODO: filter by RT60 metadata (office: 0.4-0.6s, hall: 0.8-1.2s)
+    mid = len(rirs) // 2
     if rir_type == "office":
-        return str(rirs[0])  # TODO: filter by RT60 0.4-0.6s
+        return str(rirs[0])
     else:  # hall
-        return str(rirs[min(1, len(rirs) - 1)])  # TODO: filter by RT60 0.8-1.2s
+        return str(rirs[mid])
 
 
 def generate_variants(
@@ -137,7 +163,7 @@ def generate_variants(
 
         if cond_id == "clean":
             # Clean: just copy/convert
-            torchaudio.save(str(output_path), waveform, SAMPLE_RATE)
+            save_audio(str(output_path), waveform, SAMPLE_RATE)
             transforms = []
         else:
             cond_def = CONDITIONS[cond_id]
@@ -149,20 +175,30 @@ def generate_variants(
 
             if cond_def["type"] == "noise":
                 noise_path = _pick_noise_asset(cond_def["noise_type"], assets_dir)
-                if noise_path:
-                    result, param = apply_noise_condition(
-                        result, noise_path, cond_def["snr_db"],
-                        sample_rate=SAMPLE_RATE, seed=seed,
+                if not noise_path:
+                    raise FileNotFoundError(
+                        f"No noise assets found for condition '{cond_id}'. "
+                        f"Run 'stt-bench fetch-assets' first. "
+                        f"Expected assets in: {assets_dir / 'noise' / 'musan'}"
                     )
-                    transforms.append(param)
+                result, param = apply_noise_condition(
+                    result, noise_path, cond_def["snr_db"],
+                    sample_rate=SAMPLE_RATE, seed=seed,
+                )
+                transforms.append(param)
 
             elif cond_def["type"] == "reverb":
                 rir_path = _pick_rir(cond_def["rir_type"], assets_dir)
-                if rir_path:
-                    result, param = apply_reverb_condition(
-                        result, rir_path, sample_rate=SAMPLE_RATE,
+                if not rir_path:
+                    raise FileNotFoundError(
+                        f"No RIR assets found for condition '{cond_id}'. "
+                        f"Run 'stt-bench fetch-assets' first. "
+                        f"Expected assets in: {assets_dir / 'rir' / 'rirs-noises'}"
                     )
-                    transforms.append(param)
+                result, param = apply_reverb_condition(
+                    result, rir_path, sample_rate=SAMPLE_RATE,
+                )
+                transforms.append(param)
 
             elif cond_def["type"] == "codec_mulaw":
                 result, param = apply_mulaw_codec(result, sample_rate=SAMPLE_RATE)
@@ -204,7 +240,14 @@ def generate_variants(
             if peak > 0.99:
                 result = result / peak * 0.95
 
-            torchaudio.save(str(output_path), result, SAMPLE_RATE)
+            save_audio(str(output_path), result, SAMPLE_RATE)
+
+        # Fail loudly if a non-clean condition produced no transforms
+        if cond_id != "clean" and len(transforms) == 0:
+            raise RuntimeError(
+                f"Condition '{cond_id}' produced no transforms for clip "
+                f"'{source_clip.clip_id}'. This indicates a missing condition handler."
+            )
 
         variant = ConditionVariant(
             variant_id=variant_id,

@@ -219,7 +219,9 @@ __marimo__/
 
 # STT-Bench: no audio or model files in repo
 data/generated/
+data/generated-test/
 data/assets/
+data/manifests/*-test.jsonl
 results/working/
 *.wav
 *.mp3

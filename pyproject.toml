@@ -17,9 +17,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-local = [
+audio = [
     "torch>=2.3",
     "torchaudio>=2.3",
+]
+local = [
+    "stt-bench[audio]",
     "transformers>=4.41",
     "accelerate>=0.30",
 ]

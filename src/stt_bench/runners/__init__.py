@@ -77,6 +77,6 @@ class BaseRunner(RunnerProtocol):
 
 
 # Import runner modules to trigger registration
-from . import whisper_runner, cohere_runner, qwen3_asr_runner, parakeet_runner  # noqa: F401
+from . import cohere_runner, parakeet_runner, qwen3_asr_runner, whisper_runner  # noqa: E402,F401
 
 __all__ = ["RunnerProtocol", "BaseRunner", "get_runner", "register_runner"]

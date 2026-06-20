@@ -12,7 +12,7 @@ from pathlib import Path
 import soundfile as sf
 
 from ..manifest import ConditionVariant, Hypothesis
-from . import register_runner, BaseRunner
+from . import BaseRunner, register_runner
 
 
 @register_runner("parakeet")
@@ -77,7 +77,11 @@ class ParakeetRunner(BaseRunner):
             sampling_rate=16000,
             return_tensors="pt",
         )
-        inputs = {k: v.to(self._model.device, dtype=self._dtype) if v.is_floating_point() else v.to(self._model.device) for k, v in inputs.items()}
+        inputs = {
+            k: v.to(self._model.device, dtype=self._dtype) if v.is_floating_point()
+            else v.to(self._model.device)
+            for k, v in inputs.items()
+        }
 
         with torch.no_grad():
             outputs = self._model.generate(**inputs)

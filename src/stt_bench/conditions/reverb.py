@@ -11,6 +11,20 @@ import torchaudio
 from ..manifest import TransformParam
 
 
+def _load_rir(rir_path: str) -> tuple[torch.Tensor, int]:
+    """Load RIR file, return (waveform, sample_rate) for torchaudio compat."""
+    import soundfile as sf
+
+    info = sf.info(rir_path)
+    sr = info.samplerate
+    audio, _ = sf.read(rir_path, dtype="float32")
+    if audio.ndim == 1:
+        audio = audio[:, None]
+    else:
+        audio = audio.T
+    return torch.from_numpy(audio.copy()).float(), sr
+
+
 def convolve_rir(
     speech: torch.Tensor,
     rir: torch.Tensor,
@@ -55,7 +69,7 @@ def apply_reverb_condition(
 
     Returns (reverberant_waveform, transform_param).
     """
-    rir, rir_sr = torchaudio.load(rir_path)
+    rir, rir_sr = _load_rir(rir_path)
     if rir_sr != sample_rate:
         rir = torchaudio.functional.resample(rir, rir_sr, sample_rate)
 

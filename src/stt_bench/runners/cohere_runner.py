@@ -9,11 +9,10 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-import numpy as np
 import soundfile as sf
 
 from ..manifest import ConditionVariant, Hypothesis
-from . import register_runner, BaseRunner
+from . import BaseRunner, register_runner
 
 
 @register_runner("cohere")
@@ -38,7 +37,7 @@ class CohereRunner(BaseRunner):
             return
 
         import torch
-        from transformers import CohereAsrForConditionalGeneration, AutoProcessor
+        from transformers import AutoProcessor, CohereAsrForConditionalGeneration
 
         device = self._resolve_device()
         dtype = torch.float16 if device in ("cuda", "mps") else torch.float32
@@ -78,7 +77,11 @@ class CohereRunner(BaseRunner):
             sampling_rate=16000,
             return_tensors="pt",
         )
-        inputs = {k: v.to(self._model.device, dtype=self._dtype) if v.is_floating_point() else v.to(self._model.device) for k, v in inputs.items()}
+        inputs = {
+            k: v.to(self._model.device, dtype=self._dtype) if v.is_floating_point()
+            else v.to(self._model.device)
+            for k, v in inputs.items()
+        }
 
         with torch.no_grad():
             generated_ids = self._model.generate(**inputs)
