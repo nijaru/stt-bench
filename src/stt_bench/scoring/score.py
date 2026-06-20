@@ -1,6 +1,9 @@
 """WER/CER scoring using jiwer."""
 
-from dataclasses import dataclass
+from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass
 
 import jiwer
 
@@ -20,8 +23,15 @@ class SampleScore:
     substitutions: int
     ref_normalized: str
     hyp_normalized: str
-    ref_raw: str
-    hyp_raw: str
+    ref_raw: str = ""
+    hyp_raw: str = ""
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self), ensure_ascii=False)
+
+    @classmethod
+    def from_json(cls, line: str) -> SampleScore:
+        return cls(**json.loads(line))
 
 
 @dataclass

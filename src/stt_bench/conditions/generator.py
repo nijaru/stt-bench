@@ -195,8 +195,13 @@ def generate_variants(
                         f"Run 'stt-bench fetch-assets' first. "
                         f"Expected assets in: {assets_dir / 'rir' / 'rirs-noises'}"
                     )
+                # Office: shorter RIR (0.3-0.5s), Hall: longer RIR (1-2s)
+                max_rir_seconds = 0.5 if cond_def["rir_type"] == "office" else 2.0
+                # Office: subtle reverb, Hall: moderate reverb
+                wet_dry_ratio = 0.05 if cond_def["rir_type"] == "office" else 0.10
                 result, param = apply_reverb_condition(
                     result, rir_path, sample_rate=SAMPLE_RATE,
+                    max_rir_seconds=max_rir_seconds, wet_dry_ratio=wet_dry_ratio,
                 )
                 transforms.append(param)
 

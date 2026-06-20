@@ -39,17 +39,11 @@ class WhisperRunner(BaseRunner):
             torch_dtype=dtype,
         )
 
-    def transcribe(self, variant: ConditionVariant) -> Hypothesis:
+    def transcribe(self, variant: ConditionVariant, audio_dir: Path | None = None) -> Hypothesis:
         """Transcribe a condition variant using Whisper."""
         self._load_pipeline()
 
-        audio_path = Path(variant.source_uri)
-        if not audio_path.exists():
-            # Try standard generated location
-            audio_path = Path(f"data/generated/{variant.variant_id}.wav")
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Audio not found: {variant.source_uri}")
-
+        audio_path = self.find_audio(variant, audio_dir)
         audio, sr = sf.read(str(audio_path), dtype="float32")
         if sr != 16000:
             import librosa

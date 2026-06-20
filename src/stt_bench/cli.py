@@ -112,14 +112,19 @@ def prepare(manifest, output, conditions, output_dir, assets_dir, seed):
 )
 @click.option("--model", required=True, help="Model ID (e.g. openai/whisper-large-v3).")
 @click.option("--output", required=True, type=click.Path(), help="Output directory.")
+@click.option(
+    "--audio-dir", default="data/generated", type=click.Path(),
+    help="Directory containing generated audio files.",
+)
 @click.option("--device", default="auto", help="Device: auto, cpu, cuda, mps.")
-def run(manifest, model, output, device):
+def run(manifest, model, output, audio_dir, device):
     """Run a model against a condition manifest."""
     from .manifest import ConditionVariant, iter_manifest
     from .runners import get_runner
 
     manifest_path = Path(manifest)
     output_path = Path(output)
+    audio_dir_path = Path(audio_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     runner = get_runner(model, device=device)
@@ -128,7 +133,7 @@ def run(manifest, model, output, device):
     hypotheses = []
     for variant in iter_manifest(manifest_path, ConditionVariant):
         click.echo(f"  {variant.variant_id}...", nl=False)
-        hyp = runner.transcribe(variant)
+        hyp = runner.transcribe(variant, audio_dir=audio_dir_path)
         hypotheses.append(hyp)
         click.echo(f" {hyp.runtime_seconds:.1f}s")
 

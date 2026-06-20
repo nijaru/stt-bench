@@ -46,15 +46,13 @@ class Qwen3ASRRunner(BaseRunner):
             self._model = self._model.to(device)
         self._device = device
 
-    def transcribe(self, variant: ConditionVariant) -> Hypothesis:
+    def transcribe(self, variant: ConditionVariant, audio_dir: Path | None = None) -> Hypothesis:
         """Transcribe a single audio file."""
         import torch
 
         self._load()
 
-        audio_path = Path(variant.source_uri)
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Audio not found: {audio_path}")
+        audio_path = self.find_audio(variant, audio_dir)
 
         audio, sr = sf.read(str(audio_path), dtype="float32")
         if sr != 16000:

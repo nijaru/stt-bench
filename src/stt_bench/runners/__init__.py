@@ -6,6 +6,7 @@ Each runner implements the RunnerProtocol: load model, transcribe a condition va
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from ..manifest import ConditionVariant, Hypothesis
 
@@ -74,6 +75,26 @@ class BaseRunner(RunnerProtocol):
                 return "mps"
             return "cpu"
         return self.device
+
+    def find_audio(self, variant: ConditionVariant, audio_dir: Path | None = None) -> Path:
+        """Find the generated audio file for a variant.
+
+        Looks in audio_dir first, then falls back to standard locations.
+        """
+        if audio_dir:
+            path = audio_dir / f"{variant.variant_id}.wav"
+            if path.exists():
+                return path
+
+        # Fallback: try standard generated location
+        path = Path(f"data/generated/{variant.variant_id}.wav")
+        if path.exists():
+            return path
+
+        raise FileNotFoundError(
+            f"Audio not found for {variant.variant_id}. "
+            f"Looked in: {audio_dir}, data/generated/"
+        )
 
 
 # Import runner modules to trigger registration

@@ -1,7 +1,7 @@
 """Parakeet TDT 1.1B runner.
 
-Uses AutoModelForTDT + AutoProcessor from transformers.
-Model: nvidia/parakeet-tdt-1.1b-v2
+Uses NeMo toolkit for inference.
+Model: nvidia/parakeet-tdt-1.1b
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+import numpy as np
 import soundfile as sf
 
 from ..manifest import ConditionVariant, Hypothesis
@@ -17,14 +18,14 @@ from . import BaseRunner, register_runner
 
 @register_runner("parakeet")
 class ParakeetRunner(BaseRunner):
-    """Parakeet TDT model runner using transformers."""
+    """Parakeet TDT model runner using NeMo."""
 
-    name = "parakeet"
+    name = "parakeet_nemo"
     version = "0.1.0"
 
     def __init__(
         self,
-        model_id: str = "nvidia/parakeet-tdt-1.1b-v2",
+        model_id: str = "nvidia/parakeet-tdt-1.1b",
         device: str = "auto",
         **kwargs,
     ):
@@ -32,61 +33,38 @@ class ParakeetRunner(BaseRunner):
         self._model = None
 
     def _load(self):
-        """Load the Parakeet TDT model."""
+        """Load the Parakeet TDT model via NeMo."""
         if self._model is not None:
             return
 
-        import torch
-        from transformers import AutoModelForTDT, AutoProcessor
+        import nemo.collections.asr as nemo_asr
 
-        device = self._resolve_device()
-        dtype = torch.float16 if device in ("cuda", "mps") else torch.float32
-
-        self._processor = AutoProcessor.from_pretrained(self.model_id)
-        self._model = AutoModelForTDT.from_pretrained(
-            self.model_id,
-            torch_dtype=dtype,
-            device_map=device if device != "cpu" else None,
+        self._model = nemo_asr.models.EncDecRNNTBPEModel.from_pretrained(
+            model_name=self.model_id,
         )
-        if device == "cpu":
-            self._model = self._model.to("cpu")
-
         self._model.eval()
-        self._device = device
-        self._dtype = dtype
 
-    def transcribe(self, variant: ConditionVariant) -> Hypothesis:
+    def transcribe(
+        self, variant: ConditionVariant, audio_dir: Path | None = None
+    ) -> Hypothesis:
         """Transcribe a single audio file."""
-        import torch
-
         self._load()
 
-        audio_path = Path(variant.source_uri)
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Audio not found: {audio_path}")
+        audio_path = self.find_audio(variant, audio_dir)
 
         audio, sr = sf.read(str(audio_path), dtype="float32")
         if sr != 16000:
             import librosa
+
             audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
 
         start = time.monotonic()
 
-        inputs = self._processor(
-            audio,
-            sampling_rate=16000,
-            return_tensors="pt",
-        )
-        inputs = {
-            k: v.to(self._model.device, dtype=self._dtype) if v.is_floating_point()
-            else v.to(self._model.device)
-            for k, v in inputs.items()
-        }
+        # NeMo expects a list of file paths or numpy arrays
+        transcription = self._model.transcribe(
+            paths2audio_files=[str(audio_path)]
+        )[0]
 
-        with torch.no_grad():
-            outputs = self._model.generate(**inputs)
-
-        transcription = self._processor.batch_decode(outputs, skip_special_tokens=True)[0]
         elapsed = time.monotonic() - start
 
         return Hypothesis(

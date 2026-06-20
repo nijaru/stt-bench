@@ -1,7 +1,7 @@
 """Cohere Transcribe runner.
 
 Uses CohereAsrForConditionalGeneration + AutoProcessor from transformers.
-Model: CohereForAI/c4ai-whisper-medium-v2 (or similar)
+Model: CohereLabs/cohere-transcribe-03-2026
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ class CohereRunner(BaseRunner):
 
     def __init__(
         self,
-        model_id: str = "CohereForAI/c4ai-whisper-medium-v2",
+        model_id: str = "CohereLabs/cohere-transcribe-03-2026",
         device: str = "auto",
         **kwargs,
     ):
@@ -55,15 +55,13 @@ class CohereRunner(BaseRunner):
         self._device = device
         self._dtype = dtype
 
-    def transcribe(self, variant: ConditionVariant) -> Hypothesis:
+    def transcribe(self, variant: ConditionVariant, audio_dir: Path | None = None) -> Hypothesis:
         """Transcribe a single audio file."""
         import torch
 
         self._load()
 
-        audio_path = Path(variant.source_uri)
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Audio not found: {audio_path}")
+        audio_path = self.find_audio(variant, audio_dir)
 
         audio, sr = sf.read(str(audio_path), dtype="float32")
         if sr != 16000:

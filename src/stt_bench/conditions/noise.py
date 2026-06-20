@@ -21,9 +21,9 @@ def _load_noise(noise_path: str) -> tuple[torch.Tensor, int]:
     sr = info.samplerate
     audio, _ = sf.read(noise_path, dtype="float32")
     if audio.ndim == 1:
-        audio = audio[:, None]
+        audio = audio[None, :]  # (1, samples) for mono
     else:
-        audio = audio.T
+        audio = audio.T  # (channels, samples)
     return torch.from_numpy(audio.copy()).float(), sr
 
 
