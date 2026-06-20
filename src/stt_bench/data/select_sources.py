@@ -36,7 +36,11 @@ def _fetch_rows(offset: int = 0, length: int = ROWS_PER_PAGE) -> tuple[list[dict
     response = requests.get(url, params=params, timeout=30)
     response.raise_for_status()
     data = response.json()
-    rows = [item["row"] for item in data.get("rows", [])]
+    rows = []
+    for item in data.get("rows", []):
+        row = item["row"]
+        row["_row_idx"] = item.get("row_idx", offset + len(rows))
+        rows.append(row)
     total = data.get("num_rows_total", 0)
     return rows, total
 
@@ -54,12 +58,14 @@ def _row_to_candidate(row: dict[str, Any], min_duration: float, max_duration: fl
     if not (min_duration <= duration <= max_duration):
         return None
 
-    # Extract audio URL from the API response
-    audio_list = row.get("audio", [])
-    audio_url = audio_list[0]["src"] if audio_list else None
+    row_idx = row.get("_row_idx")
+    if row_idx is None:
+        return None
+
+    audio_uri = f"hf://{LIBRISPEECH_REPO}/{LIBRISPEECH_CONFIG}/{LIBRISPEECH_SPLIT}/{row_idx}"
 
     return {
-        "audio_url": audio_url,
+        "audio_uri": audio_uri,
         "clip_id": row.get("id", ""),
         "reference_text": text,
         "speaker_id": str(row.get("speaker_id", "unknown")),
@@ -133,7 +139,7 @@ def select_librispeech_clips(
     for i, c in enumerate(selected):
         clip = SourceClip(
             clip_id=f"librispeech-{i:03d}",
-            audio_uri=c["audio_url"] or "",
+            audio_uri=c["audio_uri"],
             reference_text=c["reference_text"],
             license="CC-BY-4.0",
             source_dataset="librispeech-test-clean",

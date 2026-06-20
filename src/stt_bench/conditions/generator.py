@@ -6,7 +6,6 @@ import hashlib
 from pathlib import Path
 
 import torch
-import torchaudio
 
 from ..audio_io import save_audio
 from ..manifest import ConditionVariant, SourceClip, write_manifest
@@ -75,22 +74,42 @@ def _load_audio(uri: str, cache_dir: Path) -> torch.Tensor:
         return load_audio(str(cached_path), target_sr=SAMPLE_RATE)
 
     elif uri.startswith("hf://"):
+        # Durable HF dataset URI:
+        # hf://<org>/<dataset>/<config>/<split>/<row_idx>
         parts = uri.replace("hf://", "").split("/")
-        dataset_name = parts[0]
-        split = parts[1] if len(parts) > 1 else "test"
-        index = int(parts[2]) if len(parts) > 2 else 0
+        if len(parts) != 5:
+            raise ValueError(
+                "HF source URI must be hf://<org>/<dataset>/<config>/<split>/<row_idx>; "
+                f"got {uri!r}"
+            )
+        dataset = "/".join(parts[:2])
+        config = parts[2]
+        split = parts[3]
+        row_idx = int(parts[4])
 
-        from datasets import load_dataset
+        import requests
 
-        ds = load_dataset(dataset_name, split=split, streaming=True, trust_remote_code=True)
-        sample = next(iter(ds.skip(index).take(1)))
-        audio = sample["audio"]["array"]
-        sr = sample["audio"]["sampling_rate"]
+        rows_response = requests.get(
+            "https://datasets-server.huggingface.co/rows",
+            params={
+                "dataset": dataset,
+                "config": config,
+                "split": split,
+                "offset": row_idx,
+                "length": 1,
+            },
+            timeout=30,
+        )
+        rows_response.raise_for_status()
+        rows = rows_response.json().get("rows", [])
+        if not rows:
+            raise FileNotFoundError(f"No HF dataset row found for {uri}")
 
-        waveform = torch.from_numpy(audio).float().unsqueeze(0)
-        if sr != SAMPLE_RATE:
-            waveform = torchaudio.functional.resample(waveform, sr, SAMPLE_RATE)
-        return waveform
+        audio_list = rows[0]["row"].get("audio", [])
+        if not audio_list:
+            raise FileNotFoundError(f"No audio asset found for {uri}")
+        audio_url = audio_list[0]["src"]
+        return _load_audio(audio_url, cache_dir)
     else:
         return load_audio(uri, target_sr=SAMPLE_RATE)
 
@@ -182,8 +201,11 @@ def generate_variants(
                         f"Expected assets in: {assets_dir / 'noise' / 'musan'}"
                     )
                 result, param = apply_noise_condition(
-                    result, noise_path, cond_def["snr_db"],
-                    sample_rate=SAMPLE_RATE, seed=seed,
+                    result,
+                    noise_path,
+                    cond_def["snr_db"],
+                    sample_rate=SAMPLE_RATE,
+                    seed=seed,
                 )
                 transforms.append(param)
 
@@ -200,8 +222,11 @@ def generate_variants(
                 # Office: subtle reverb, Hall: moderate reverb
                 wet_dry_ratio = 0.05 if cond_def["rir_type"] == "office" else 0.10
                 result, param = apply_reverb_condition(
-                    result, rir_path, sample_rate=SAMPLE_RATE,
-                    max_rir_seconds=max_rir_seconds, wet_dry_ratio=wet_dry_ratio,
+                    result,
+                    rir_path,
+                    sample_rate=SAMPLE_RATE,
+                    max_rir_seconds=max_rir_seconds,
+                    wet_dry_ratio=wet_dry_ratio,
                 )
                 transforms.append(param)
 
@@ -211,31 +236,38 @@ def generate_variants(
 
             elif cond_def["type"] == "codec_mp3":
                 result, param = apply_mp3_codec(
-                    result, sample_rate=SAMPLE_RATE,
+                    result,
+                    sample_rate=SAMPLE_RATE,
                     bitrate_kbps=cond_def["bitrate_kbps"],
                 )
                 transforms.append(param)
 
             elif cond_def["type"] == "codec_opus":
                 from .codec import apply_opus_codec
+
                 result, param = apply_opus_codec(
-                    result, sample_rate=SAMPLE_RATE,
+                    result,
+                    sample_rate=SAMPLE_RATE,
                     bitrate_kbps=cond_def["bitrate_kbps"],
                 )
                 transforms.append(param)
 
             elif cond_def["type"] == "codec_aac":
                 from .codec import apply_aac_codec
+
                 result, param = apply_aac_codec(
-                    result, sample_rate=SAMPLE_RATE,
+                    result,
+                    sample_rate=SAMPLE_RATE,
                     bitrate_kbps=cond_def["bitrate_kbps"],
                 )
                 transforms.append(param)
 
             elif cond_def["type"] == "mic":
                 from .mic import apply_mic_profile
+
                 result, param = apply_mic_profile(
-                    result, mic_type=cond_def["mic_type"],
+                    result,
+                    mic_type=cond_def["mic_type"],
                     sample_rate=SAMPLE_RATE,
                 )
                 transforms.append(param)
@@ -289,7 +321,11 @@ def generate_condition_manifest(
 
     for source in sources:
         variants = generate_variants(
-            source, condition_ids, output_dir, assets_dir, seed=seed,
+            source,
+            condition_ids,
+            output_dir,
+            assets_dir,
+            seed=seed,
         )
         all_variants.extend(variants)
 
