@@ -9,9 +9,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-import numpy as np
-import soundfile as sf
-
 from ..manifest import ConditionVariant, Hypothesis
 from . import BaseRunner, register_runner
 
@@ -39,31 +36,26 @@ class ParakeetRunner(BaseRunner):
 
         import nemo.collections.asr as nemo_asr
 
+        device = self._resolve_device()
         self._model = nemo_asr.models.EncDecRNNTBPEModel.from_pretrained(
             model_name=self.model_id,
         )
+        self._model = self._model.to(device)
         self._model.eval()
+        self._device = device
 
-    def transcribe(
-        self, variant: ConditionVariant, audio_dir: Path | None = None
-    ) -> Hypothesis:
+    def transcribe(self, variant: ConditionVariant, audio_dir: Path | None = None) -> Hypothesis:
         """Transcribe a single audio file."""
         self._load()
 
         audio_path = self.find_audio(variant, audio_dir)
 
-        audio, sr = sf.read(str(audio_path), dtype="float32")
-        if sr != 16000:
-            import librosa
-
-            audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
-
         start = time.monotonic()
 
-        # NeMo expects a list of file paths or numpy arrays
-        transcription = self._model.transcribe(
-            paths2audio_files=[str(audio_path)]
-        )[0]
+        result = self._model.transcribe(audio=[str(audio_path)], batch_size=1, verbose=False)
+        transcription = result[0] if isinstance(result, list) else result
+        if not isinstance(transcription, str):
+            transcription = getattr(transcription, "text", str(transcription))
 
         elapsed = time.monotonic() - start
 

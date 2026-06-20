@@ -1,0 +1,10 @@
+[project]
+name = "stt-bench-env-whisper"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "stt-bench[local]",
+]
+
+[tool.uv.sources]
+stt-bench = { path = "../..", editable = true }

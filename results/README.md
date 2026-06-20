@@ -1,12 +1,6 @@
 # Results
 
-Each benchmark run produces a directory under `results/<run-id>/` containing:
+Ad hoc benchmark outputs are ignored by default.
 
-- `config.json` — run configuration, model IDs, benchmark version
-- `hypotheses.jsonl` — model outputs per condition variant
-- `scores.jsonl` — WER/CER per sample
-- `summary.csv` — aggregate results table
-- `summary.md` — human-readable report
-- `failures.jsonl` — failed runs
-
-Results are committed for published runs. Working runs can be gitignored.
+Curated release results may be committed under `results/release/` after the run
+is reproducible and generated from pinned manifests/model revisions.

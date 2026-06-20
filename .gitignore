@@ -222,7 +222,13 @@ data/generated/
 data/generated-test/
 data/assets/
 data/manifests/*-test.jsonl
-results/working/
+results/*
+!results/README.md
+!results/release/
+!results/release/**
+model-envs/*/.venv/
+.venvs/
+.venv-*/
 *.wav
 *.mp3
 *.flac

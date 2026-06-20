@@ -9,8 +9,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-import soundfile as sf
-
 from ..manifest import ConditionVariant, Hypothesis
 from . import BaseRunner, register_runner
 
@@ -36,35 +34,37 @@ class Qwen3ASRRunner(BaseRunner):
         if self._model is not None:
             return
 
+        import torch
         from qwen_asr import Qwen3ASRModel
 
-        self._model = Qwen3ASRModel.from_pretrained(self.model_id)
-        self._model.eval()
-
         device = self._resolve_device()
-        if device != "cpu":
-            self._model = self._model.to(device)
+        dtype = torch.float16 if device in ("cuda", "mps") else torch.float32
+        load_kwargs = {"torch_dtype": dtype}
+        if device == "cuda":
+            load_kwargs["device_map"] = "cuda"
+
+        self._model = Qwen3ASRModel.from_pretrained(self.model_id, **load_kwargs)
+        if device != "cuda":
+            self._model.model = self._model.model.to(device)
         self._device = device
 
     def transcribe(self, variant: ConditionVariant, audio_dir: Path | None = None) -> Hypothesis:
         """Transcribe a single audio file."""
-        import torch
-
         self._load()
 
         audio_path = self.find_audio(variant, audio_dir)
 
-        audio, sr = sf.read(str(audio_path), dtype="float32")
-        if sr != 16000:
-            import librosa
-            audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
-
         start = time.monotonic()
 
-        with torch.no_grad():
-            result = self._model.transcribe(audio, sampling_rate=16000)
+        # Qwen3-ASR expects file path, not audio array
+        result = self._model.transcribe(str(audio_path))
 
-        transcription = result.get("text", "") if isinstance(result, dict) else str(result)
+        # Result is list of ASRTranscription objects
+        if isinstance(result, list) and len(result) > 0:
+            transcription = result[0].text
+        else:
+            transcription = str(result)
+
         elapsed = time.monotonic() - start
 
         return Hypothesis(

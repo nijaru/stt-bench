@@ -6,6 +6,7 @@ Model: CohereLabs/cohere-transcribe-03-2026
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 
@@ -29,11 +30,12 @@ class CohereRunner(BaseRunner):
         **kwargs,
     ):
         super().__init__(model_id=model_id, device=device, **kwargs)
-        self._pipe = None
+        self._model = None
+        self._processor = None
 
     def _load(self):
         """Load the Cohere ASR model."""
-        if self._pipe is not None:
+        if self._model is not None:
             return
 
         import torch
@@ -42,14 +44,16 @@ class CohereRunner(BaseRunner):
         device = self._resolve_device()
         dtype = torch.float16 if device in ("cuda", "mps") else torch.float32
 
-        self._processor = AutoProcessor.from_pretrained(self.model_id)
+        token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+        self._processor = AutoProcessor.from_pretrained(self.model_id, token=token)
         self._model = CohereAsrForConditionalGeneration.from_pretrained(
             self.model_id,
             torch_dtype=dtype,
-            device_map=device if device != "cpu" else None,
+            device_map=device if device == "cuda" else None,
+            token=token,
         )
-        if device == "cpu":
-            self._model = self._model.to("cpu")
+        if device != "cuda":
+            self._model = self._model.to(device)
 
         self._model.eval()
         self._device = device
@@ -66,6 +70,7 @@ class CohereRunner(BaseRunner):
         audio, sr = sf.read(str(audio_path), dtype="float32")
         if sr != 16000:
             import librosa
+
             audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
 
         start = time.monotonic()
@@ -76,7 +81,8 @@ class CohereRunner(BaseRunner):
             return_tensors="pt",
         )
         inputs = {
-            k: v.to(self._model.device, dtype=self._dtype) if v.is_floating_point()
+            k: v.to(self._model.device, dtype=self._dtype)
+            if v.is_floating_point()
             else v.to(self._model.device)
             for k, v in inputs.items()
         }

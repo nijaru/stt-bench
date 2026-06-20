@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'USAGE'
+Usage:
+  scripts/run-model <env> [stt-bench run options]
+
+Environments:
+  whisper   Whisper / Transformers reference runner
+  cohere    Cohere Transcribe runner (requires HF auth + model access)
+  qwen3     Qwen3-ASR runner
+  parakeet  NVIDIA Parakeet runner (Linux x86_64 / NeMo)
+
+Example:
+  scripts/run-model cohere \
+    --manifest data/manifests/conditions-test.jsonl \
+    --model CohereLabs/cohere-transcribe-03-2026 \
+    --output results/cohere-test \
+    --audio-dir data/generated-test
+USAGE
+}
+
+if [[ $# -lt 1 ]]; then
+  usage
+  exit 2
+fi
+
+env_name="$1"
+shift
+
+case "$env_name" in
+  whisper|cohere|qwen3|parakeet) ;;
+  *)
+    echo "Unknown model env: $env_name" >&2
+    usage
+    exit 2
+    ;;
+esac
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+env_dir="$repo_root/model-envs/$env_name"
+
+if [[ "$env_name" == "parakeet" ]]; then
+  os_name="$(uname -s)"
+  arch_name="$(uname -m)"
+  if [[ "$os_name" != "Linux" || "$arch_name" != "x86_64" ]]; then
+    echo "Parakeet requires Linux x86_64 because NeMo ASR dependencies do not install on this platform ($os_name/$arch_name)." >&2
+    echo "Use the Fedora/4090 machine for this runner." >&2
+    exit 1
+  fi
+fi
+
+if [[ "$env_name" == "cohere" && -z "${HF_TOKEN:-}" ]]; then
+  if command -v hf >/dev/null 2>&1; then
+    token="$(hf auth token 2>/dev/null || true)"
+    if [[ -n "$token" ]]; then
+      export HF_TOKEN="$token"
+    fi
+  fi
+fi
+
+exec uv run --project "$env_dir" stt-bench run "$@"

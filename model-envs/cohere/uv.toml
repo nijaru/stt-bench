@@ -1,0 +1,2 @@
+# Allow editable stt-bench install in this model-specific environment
+no-build = false

@@ -1,0 +1,13 @@
+[project]
+name = "stt-bench-env-cohere"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "accelerate>=1.0",
+    "stt-bench",
+    "torch>=2.3",
+    "transformers>=5.0",
+]
+
+[tool.uv.sources]
+stt-bench = { path = "../..", editable = true }

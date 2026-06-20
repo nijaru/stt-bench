@@ -40,26 +40,32 @@ All transforms use real noise recordings (MUSAN) and real room impulse responses
 ## Quickstart
 
 ```bash
-# Install
+# Install core benchmark tools
 git clone https://github.com/nijaru/stt-bench.git
 cd stt-bench
 uv sync
-uv sync --extra local  # for local GPU inference
 
 # Download assets
-stt-bench fetch-assets
+uv run stt-bench fetch-assets
 
 # Select source clips
-stt-bench select-sources --n-clips 30
+uv run stt-bench select-sources --n-clips 30
 
 # Generate condition variants
-stt-bench prepare --manifest data/manifests/sources-v0.jsonl --output data/manifests/conditions-v0.jsonl
+uv run stt-bench prepare \
+  --manifest data/manifests/sources-v0.jsonl \
+  --output data/manifests/conditions-v0.jsonl
 
-# Run a model
-stt-bench run --manifest data/manifests/conditions-v0.jsonl --model openai/whisper-large-v3 --output results/whisper-v3
+# Run a model through its isolated model environment
+scripts/run-model whisper \
+  --manifest data/manifests/conditions-v0.jsonl \
+  --model openai/whisper-large-v3 \
+  --output results/whisper-v3
 
-# Score results
-stt-bench score --results-dir results/whisper-v3 --manifest data/manifests/conditions-v0.jsonl
+# Score results from the core environment
+uv run stt-bench score \
+  --results-dir results/whisper-v3 \
+  --manifest data/manifests/conditions-v0.jsonl
 ```
 
 ## How it works
@@ -74,6 +80,33 @@ Source clips (LibriSpeech, downloaded on demand)
 
 No audio or model weights stored in the repo. Everything downloaded on demand.
 
+## Model environments
+
+Model packages have incompatible dependency constraints, so STT-Bench keeps the
+core package lightweight and runs each model family in its own uv project under
+`model-envs/`.
+
+Use the wrapper from the repo root:
+
+```bash
+scripts/run-model <env> --manifest <conditions.jsonl> --model <model-id> --output <results-dir>
+```
+
+Available envs:
+
+| Env | Model family | Notes |
+|-----|--------------|-------|
+| `whisper` | Whisper / Transformers | Reference local runner |
+| `cohere` | Cohere Transcribe | Requires Hugging Face auth and model access |
+| `qwen3` | Qwen3-ASR | Uses `qwen-asr` in an isolated env |
+| `parakeet` | NVIDIA Parakeet | NeMo env; Linux x86_64 recommended |
+
+Direct uv form:
+
+```bash
+uv run --project model-envs/cohere stt-bench run ...
+```
+
 ## Project structure
 
 ```
@@ -87,7 +120,9 @@ src/stt_bench/
     reports/            # Tables and plots
 data/
     manifests/          # Source + condition metadata (committed)
-results/                # Run outputs (selectively committed)
+results/                # Ad hoc outputs ignored; curated releases in results/release/
+model-envs/             # Isolated uv projects for incompatible model deps
+scripts/run-model       # Uniform wrapper for model-specific environments
 docs/
     methodology.md      # Full methodology and reproducibility docs
 ```
