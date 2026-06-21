@@ -17,9 +17,9 @@ Existing benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) report word erro
 
 **What the numbers show:**
 
-- Noise, codecs, and mic roll-off stay within about a point of clean WER for every model. These aren't where production ASR fails.
-- Reverb is. Office reverb pushes Whisper and Qwen3 to ~25% WER — roughly 8–13× their clean baseline.
-- Small rooms are harder than large ones for three of the four models. Cohere is the exception, and it wins both categories anyway: 6% hall, 9.6% office, against 8–15% and 23–26% for the rest.
+- Noise, codecs, and mic roll-off stay within about a point of clean WER for every model.
+- Reverb is the only condition that causes major degradation. Office reverb pushes Whisper and Qwen3 to ~25% WER — roughly 8–13× their clean baseline.
+- Small rooms are harder than large ones for three of the four models. Cohere is the exception: 6% hall, 9.6% office, against 8–15% and 23–26% for the rest.
 
 ## Conditions
 
