@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from pathlib import Path
 
+import requests
 import torch
 
 from ..audio_io import save_audio
@@ -40,6 +42,27 @@ CONDITIONS = {
 SAMPLE_RATE = 16000
 
 
+def _get_with_retry(
+    url: str,
+    *,
+    params: dict | None = None,
+    timeout: float = 30,
+    max_attempts: int = 5,
+) -> requests.Response:
+    """GET with bounded retry for transient HF datasets-server failures."""
+    for attempt in range(max_attempts):
+        response = requests.get(url, params=params, timeout=timeout)
+        if response.status_code not in (429, 500, 502, 503, 504):
+            response.raise_for_status()
+            return response
+        if attempt == max_attempts - 1:
+            response.raise_for_status()
+        retry_after = response.headers.get("Retry-After")
+        sleep_seconds = float(retry_after) if retry_after else 2**attempt
+        time.sleep(min(sleep_seconds, 30))
+    raise RuntimeError("unreachable")
+
+
 def _hash_audio(waveform: torch.Tensor) -> str:
     """SHA256 hash of audio tensor for checksums."""
     return hashlib.sha256(waveform.numpy().tobytes()).hexdigest()[:16]
@@ -64,10 +87,7 @@ def _load_audio(uri: str, cache_dir: Path) -> torch.Tensor:
         cached_path = cache_dir / f"source_{url_hash}.flac"
 
         if not cached_path.exists():
-            import requests
-
-            response = requests.get(uri, timeout=60)
-            response.raise_for_status()
+            response = _get_with_retry(uri, timeout=60)
             with open(cached_path, "wb") as f:
                 f.write(response.content)
 
@@ -87,9 +107,7 @@ def _load_audio(uri: str, cache_dir: Path) -> torch.Tensor:
         split = parts[3]
         row_idx = int(parts[4])
 
-        import requests
-
-        rows_response = requests.get(
+        rows_response = _get_with_retry(
             "https://datasets-server.huggingface.co/rows",
             params={
                 "dataset": dataset,
@@ -100,7 +118,6 @@ def _load_audio(uri: str, cache_dir: Path) -> torch.Tensor:
             },
             timeout=30,
         )
-        rows_response.raise_for_status()
         rows = rows_response.json().get("rows", [])
         if not rows:
             raise FileNotFoundError(f"No HF dataset row found for {uri}")
