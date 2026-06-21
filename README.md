@@ -6,7 +6,7 @@ Existing benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) report word erro
 
 ## Results
 
-30 clips from LibriSpeech test-clean, each degraded 13 ways (390 samples per model). All models ran on a single RTX 4090.
+30 clips from LibriSpeech test-clean, each degraded 13 ways (390 samples per model). All models were run on a single RTX 4090.
 
 | Model | Params | Overall WER | Clean | Reverb (hall) | Reverb (office) |
 |-------|-------:|------------:|------:|--------------:|----------------:|
