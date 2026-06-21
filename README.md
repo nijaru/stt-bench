@@ -1,51 +1,43 @@
 # STT-Bench
 
-Real-world robustness benchmarks for speech-to-text systems.
+How do speech-to-text models hold up when the audio isn't clean?
 
-## The problem
+Existing benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) report word error rates on studio-quality recordings. Real audio is noisy, reverberant, compressed, and captured on laptop mics. STT-Bench measures that gap by running the same source clip through 13 acoustic conditions and scoring the transcripts.
 
-Existing STT benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) evaluate clean audio. Production audio is noisy, reverberant, compressed, and recorded on cheap hardware. STT-Bench measures this gap.
+## Results
 
-## What it does
+30 clips from LibriSpeech test-clean, each degraded 13 ways (390 samples per model). All runs on a single RTX 4090.
 
-Tests 4 SOTA STT models under 13 acoustic conditions:
-
-| # | Condition | Real-world scenario |
-|---|-----------|---------------------|
-| 1 | `clean` | Quiet recording environment |
-| 2 | `noise_cafe_snr_15` | Coffee shop (moderate) |
-| 3 | `noise_cafe_snr_10` | Busy restaurant (noisy) |
-| 4 | `noise_traffic_snr_15` | Walking near road |
-| 5 | `noise_traffic_snr_10` | Busy street |
-| 6 | `reverb_office` | Small room (office, home) |
-| 7 | `reverb_hall` | Large space (conference hall) |
-| 8 | `codec_telephony` | Phone call (G.711 mu-law) |
-| 9 | `codec_opus_low` | Voice message (Opus 6kbps) |
-| 10 | `codec_aac_low` | Video call (AAC 32kbps) |
-| 11 | `mic_phone` | Smartphone recording |
-| 12 | `mic_laptop` | Laptop internal mic |
-| 13 | `noise_hvac` | Office HVAC/fan |
-
-All transforms use real noise recordings (MUSAN) and real room impulse responses (OpenSLR-28). No synthetic artifacts.
-
-## Results (v0)
-
-30 LibriSpeech test-clean clips × 13 conditions = 390 samples per model.  
-Run on Fedora Linux, RTX 4090.
-
-| Model | Params | Overall WER | Clean | Reverb Hall | Reverb Office |
-|-------|--------|-------------|-------|-------------|---------------|
-| Cohere Transcribe | 2B | 2.5% | 1.5% | 6.0% | 9.6% |
+| Model | Params | Overall WER | Clean | Reverb (hall) | Reverb (office) |
+|-------|-------:|------------:|------:|--------------:|----------------:|
+| Cohere Transcribe | 2.0B | **2.5%** | 1.5% | 6.0% | 9.6% |
 | Parakeet TDT 1.1B | 1.1B | 3.9% | 1.7% | 8.4% | 23.0% |
 | Qwen3-ASR | 1.7B | 4.6% | 2.0% | 11.3% | 25.5% |
 | Whisper Large V3 | 1.55B | 5.5% | 3.0% | 15.1% | 25.7% |
 
-**Findings:**
-- All models handle noise, codecs, and mic profiles well (WER barely moves from clean).
-- Reverb is the main degradation factor. Office reverb (small room) is harder than hall for most models.
-- Cohere is notably more robust to reverb than the others.
+Noise, codecs, and mic profiles barely move the numbers off clean. Reverb is where things break — office reverb more than hall for every model except Cohere, which stays under 10% across both.
 
-## Quickstart
+## Conditions
+
+Each condition maps to a real recording scenario. All transforms use real noise (MUSAN) and real room impulse responses (OpenSLR-28), not synthetic approximations.
+
+| Condition | Scenario |
+|-----------|----------|
+| `clean` | Quiet recording environment |
+| `noise_cafe_snr_15` / `_snr_10` | Coffee shop, moderate to busy |
+| `noise_traffic_snr_15` / `_snr_10` | Street, walking to busy |
+| `noise_hvac` | Office HVAC / fan hum |
+| `reverb_office` | Small room (office, home) |
+| `reverb_hall` | Large space (conference hall) |
+| `codec_telephony` | Phone call (G.711 mu-law) |
+| `codec_opus_low` | Voice message (Opus 6 kbps) |
+| `codec_aac_low` | Video call (AAC 32 kbps) |
+| `mic_phone` | Smartphone recording |
+| `mic_laptop` | Laptop internal mic |
+
+## Usage
+
+Requires Python 3.13 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 git clone https://github.com/nijaru/stt-bench.git
@@ -55,89 +47,66 @@ uv sync
 # Download noise and RIR assets
 uv run stt-bench fetch-assets
 
-# Select source clips
+# Select source clips and generate degraded variants
 uv run stt-bench select-sources --n-clips 30
-
-# Generate condition variants
 uv run stt-bench prepare \
   --manifest data/manifests/sources-v0.jsonl \
   --output data/manifests/conditions-v0.jsonl
 
-# Run a model
+# Run a model in its isolated environment, then score
 scripts/run-model whisper \
   --manifest data/manifests/conditions-v0.jsonl \
   --model openai/whisper-large-v3 \
   --output results/whisper-v0
-
-# Score results
 uv run stt-bench score \
   --results-dir results/whisper-v0 \
   --manifest data/manifests/conditions-v0.jsonl
 ```
 
-## How it works
+No audio or model weights live in the repo. Source clips and assets download on demand from Hugging Face and OpenSLR.
 
-```
-Source clips (LibriSpeech, downloaded on demand)
-    → Condition generation (real noise + real RIRs + DSP transforms)
-    → Model runners (HF models with pinned revisions)
-    → Scoring (jiwer WER/CER, conservative normalization)
-    → Reporting (tables, markdown)
-```
+### Model environments
 
-No audio or model weights in the repo. Everything downloaded on demand.
-
-## Model environments
-
-Model packages have incompatible dependency constraints. Each model family runs in its own uv project under `model-envs/`.
+Model families pin conflicting versions of `transformers` (Qwen3 pins 4.57, Cohere needs 5.0+, Parakeet needs NeMo on Linux). Each model runs in its own uv project under `model-envs/`, invoked through a single wrapper:
 
 ```bash
-scripts/run-model <env> --manifest <conditions.jsonl> --model <model-id> --output <results-dir>
+scripts/run-model <env> --manifest <conditions.jsonl> --model <model-id> --output <dir>
 ```
 
-| Env | Model family | Notes |
-|-----|--------------|-------|
-| `whisper` | Whisper / Transformers | Reference local runner |
-| `cohere` | Cohere Transcribe | Requires Hugging Face auth and model access |
-| `qwen3` | Qwen3-ASR | Uses `qwen-asr` in an isolated env |
-| `parakeet` | NVIDIA Parakeet | NeMo env; Linux x86_64 recommended |
-
-## Project structure
-
-```
-src/stt_bench/
-    cli.py              # Click CLI
-    manifest.py         # JSONL manifest schemas
-    scoring/            # WER/CER with jiwer
-    conditions/         # Audio transforms (noise, reverb, codec, mic)
-    runners/            # Model runners (Whisper, Cohere, Qwen3, Parakeet)
-    data/               # Asset downloader, source selector
-    reports/            # Tables and plots
-data/
-    manifests/          # Source + condition metadata (committed)
-results/                # Ad hoc outputs ignored; curated releases in results/release/
-model-envs/             # Isolated uv projects for incompatible model deps
-scripts/run-model       # Uniform wrapper for model-specific environments
-docs/
-    methodology.md      # Full methodology and reproducibility docs
-```
+| Env | Model | Notes |
+|-----|-------|-------|
+| `whisper` | Whisper / Transformers | Reference runner |
+| `cohere` | Cohere Transcribe | Needs HF auth + model access |
+| `qwen3` | Qwen3-ASR | `qwen-asr`, pinned transformers |
+| `parakeet` | NVIDIA Parakeet TDT | NeMo; Linux x86_64 |
 
 ## Adding a model
 
-1. Create `src/stt_bench/runners/<model>.py`
-2. Implement the runner protocol (read manifest, transcribe, write hypothesis JSONL)
-3. Register in CLI
-4. Run against existing condition manifest
+1. Write `src/stt_bench/runners/<model>.py` implementing the runner protocol (load model, transcribe a variant, return a hypothesis).
+2. Register the runner in the CLI.
+3. Add a `model-envs/<model>/` uv project if the deps conflict with existing ones.
+4. Run against an existing condition manifest and compare.
 
-See `docs/methodology.md` for full protocol specification.
+`docs/methodology.md` covers the full protocol, scoring, and reproducibility notes.
+
+## Project layout
+
+```
+src/stt_bench/
+    cli.py              Click CLI
+    manifest.py         JSONL manifest schemas
+    scoring/            WER/CER via jiwer
+    conditions/         Audio transforms (noise, reverb, codec, mic)
+    runners/            Model runners (Whisper, Cohere, Qwen3, Parakeet)
+    data/               Asset downloader, source selector
+    reports/            Tables and plots
+model-envs/             One uv project per model family
+scripts/run-model       Wrapper that picks the right environment
+docs/methodology.md     Methodology and reproducibility
+```
 
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
 
-## Acknowledgments
-
-- [MUSAN](https://www.openslr.org/17/) — noise corpus (CC BY 4.0)
-- [OpenSLR-28](https://www.openslr.org/28/) — room impulse responses (Apache 2.0)
-- [LibriSpeech](https://www.openslr.org/12/) — source speech (CC BY 4.0)
-- [jiwer](https://github.com/jitsi/jiwer) — WER/CER computation
+Built on [LibriSpeech](https://www.openslr.org/12/) (CC BY 4.0), [MUSAN](https://www.openslr.org/17/) (CC BY 4.0), [OpenSLR-28](https://www.openslr.org/28/) (Apache 2.0), and [jiwer](https://github.com/jitsi/jiwer).
