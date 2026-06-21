@@ -28,24 +28,31 @@ Tests 4 SOTA STT models under 13 acoustic conditions:
 
 All transforms use real noise recordings (MUSAN) and real room impulse responses (OpenSLR-28). No synthetic artifacts.
 
-## Models (v0)
+## Results (v0)
 
-| Model | Params | Clean WER | License |
-|-------|--------|-----------|---------|
-| Whisper Large V3 | 1.55B | 7.44% | MIT |
-| Cohere Transcribe | 2B | 5.42% | Apache 2.0 |
-| Qwen3-ASR | 1.7B | 5.76% | Apache 2.0 |
-| Parakeet TDT 1.1B | 1.1B | ~8.0% | CC-BY-4.0 |
+30 LibriSpeech test-clean clips × 13 conditions = 390 samples per model.  
+Run on Fedora Linux, RTX 4090.
+
+| Model | Params | Overall WER | Clean | Reverb Hall | Reverb Office |
+|-------|--------|-------------|-------|-------------|---------------|
+| Cohere Transcribe | 2B | 2.5% | 1.5% | 6.0% | 9.6% |
+| Parakeet TDT 1.1B | 1.1B | 3.9% | 1.7% | 8.4% | 23.0% |
+| Qwen3-ASR | 1.7B | 4.6% | 2.0% | 11.3% | 25.5% |
+| Whisper Large V3 | 1.55B | 5.5% | 3.0% | 15.1% | 25.7% |
+
+**Findings:**
+- All models handle noise, codecs, and mic profiles well (WER barely moves from clean).
+- Reverb is the main degradation factor. Office reverb (small room) is harder than hall for most models.
+- Cohere is notably more robust to reverb than the others.
 
 ## Quickstart
 
 ```bash
-# Install core benchmark tools
 git clone https://github.com/nijaru/stt-bench.git
 cd stt-bench
 uv sync
 
-# Download assets
+# Download noise and RIR assets
 uv run stt-bench fetch-assets
 
 # Select source clips
@@ -56,15 +63,15 @@ uv run stt-bench prepare \
   --manifest data/manifests/sources-v0.jsonl \
   --output data/manifests/conditions-v0.jsonl
 
-# Run a model through its isolated model environment
+# Run a model
 scripts/run-model whisper \
   --manifest data/manifests/conditions-v0.jsonl \
   --model openai/whisper-large-v3 \
-  --output results/whisper-v3
+  --output results/whisper-v0
 
-# Score results from the core environment
+# Score results
 uv run stt-bench score \
-  --results-dir results/whisper-v3 \
+  --results-dir results/whisper-v0 \
   --manifest data/manifests/conditions-v0.jsonl
 ```
 
@@ -78,21 +85,15 @@ Source clips (LibriSpeech, downloaded on demand)
     → Reporting (tables, markdown)
 ```
 
-No audio or model weights stored in the repo. Everything downloaded on demand.
+No audio or model weights in the repo. Everything downloaded on demand.
 
 ## Model environments
 
-Model packages have incompatible dependency constraints, so STT-Bench keeps the
-core package lightweight and runs each model family in its own uv project under
-`model-envs/`.
-
-Use the wrapper from the repo root:
+Model packages have incompatible dependency constraints. Each model family runs in its own uv project under `model-envs/`.
 
 ```bash
 scripts/run-model <env> --manifest <conditions.jsonl> --model <model-id> --output <results-dir>
 ```
-
-Available envs:
 
 | Env | Model family | Notes |
 |-----|--------------|-------|
@@ -100,12 +101,6 @@ Available envs:
 | `cohere` | Cohere Transcribe | Requires Hugging Face auth and model access |
 | `qwen3` | Qwen3-ASR | Uses `qwen-asr` in an isolated env |
 | `parakeet` | NVIDIA Parakeet | NeMo env; Linux x86_64 recommended |
-
-Direct uv form:
-
-```bash
-uv run --project model-envs/cohere stt-bench run ...
-```
 
 ## Project structure
 
