@@ -89,22 +89,6 @@ scripts/run-model <env> --manifest <conditions.jsonl> --model <model-id> --outpu
 
 `docs/methodology.md` covers the full protocol, scoring, and reproducibility notes.
 
-## Project layout
-
-```
-src/stt_bench/
-    cli.py              Click CLI
-    manifest.py         JSONL manifest schemas
-    scoring/            WER/CER via jiwer
-    conditions/         Audio transforms (noise, reverb, codec, mic)
-    runners/            Model runners (Whisper, Cohere, Qwen3, Parakeet)
-    data/               Asset downloader, source selector
-    reports/            Tables and plots
-model-envs/             One uv project per model family
-scripts/run-model       Wrapper that picks the right environment
-docs/methodology.md     Methodology and reproducibility
-```
-
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
