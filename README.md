@@ -10,10 +10,10 @@ Existing benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) report word erro
 
 | Model | Params | Overall WER | Clean | Reverb (hall) | Reverb (office) | Latency |
 |-------|-------:|------------:|------:|--------------:|----------------:|--------:|
-| Cohere Transcribe | 2.0B | 2.5% [2.1–3.0] | 1.5% [0.8–2.3] | 6.0% [4.0–8.0] | 9.6% [7.0–12.6] | 0.10s |
-| Parakeet TDT 1.1B | 1.1B | 3.9% [3.1–4.8] | 1.7% [0.9–2.5] | 8.4% [6.0–11.0] | 23.0% [16.1–31.0] | 0.05s |
-| Qwen3-ASR | 1.7B | 4.6% [3.8–5.4] | 2.0% [1.1–2.9] | 11.3% [8.7–14.1] | 25.5% [21.2–29.8] | 0.40s |
-| Whisper Large V3 | 1.55B | 5.5% [4.6–6.3] | 3.0% [1.8–4.4] | 15.1% [11.5–18.8] | 25.7% [21.7–29.6] | 0.53s |
+| Cohere Transcribe | 2.0B | 2.5%<br>[2.1–3.0] | 1.5%<br>[0.8–2.3] | 6.0%<br>[4.0–8.0] | 9.6%<br>[7.0–12.6] | 0.10s |
+| Parakeet TDT 1.1B | 1.1B | 3.9%<br>[3.1–4.8] | 1.7%<br>[0.9–2.5] | 8.4%<br>[6.0–11.0] | 23.0%<br>[16.1–31.0] | 0.05s |
+| Qwen3-ASR | 1.7B | 4.6%<br>[3.8–5.4] | 2.0%<br>[1.1–2.9] | 11.3%<br>[8.7–14.1] | 25.5%<br>[21.2–29.8] | 0.40s |
+| Whisper Large V3 | 1.55B | 5.5%<br>[4.6–6.3] | 3.0%<br>[1.8–4.4] | 15.1%<br>[11.5–18.8] | 25.7%<br>[21.7–29.6] | 0.53s |
 
 *WER ranges are 95% bootstrap CIs (2000 resamples). Latency is average seconds per sample on the RTX 4090.*
 
