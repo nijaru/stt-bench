@@ -19,7 +19,7 @@ Noise, codecs, and mic profiles barely move the numbers off clean. Reverb is whe
 
 ## Conditions
 
-Each condition maps to a real recording scenario. All transforms use real noise (MUSAN) and real room impulse responses (OpenSLR-28), not synthetic approximations.
+Each condition maps to a real recording scenario. All effects use real noise (MUSAN) and real room impulse responses (OpenSLR-28), not synthetic approximations.
 
 | Condition | Scenario |
 |-----------|----------|
