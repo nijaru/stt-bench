@@ -2,7 +2,7 @@
 
 How do speech-to-text models hold up when the audio isn't clean?
 
-Existing benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) report word error rates on studio-quality recordings. Real audio is noisy, reverberant, compressed, and captured on built-in mics. STT-Bench measures that gap by running the same source clip through 13 acoustic conditions and scoring the transcripts.
+Existing benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) report word error rates on studio-quality recordings. Real audio is noisy, reverberant, compressed, and captured on built-in mics. STT-Bench measures that gap by running each source clip through 13 acoustic conditions and scoring the transcripts.
 
 ## Results
 
@@ -17,7 +17,7 @@ Existing benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) report word erro
 
 **Findings:**
 
-Among 13 conditions tested, only reverb meaningfully degrades WER. Noise, codecs, and mic profiles stay within 1.5× of clean across every model. Hall reverb multiplies clean WER by 4–6×; office reverb reaches 6–14× despite using half the wet signal (5% vs 10%). Dense early reflections in small rooms smear phoneme boundaries more than the diffuse tail of a large space. Cohere handles reverb best at 6× (office), where Parakeet and Qwen3 reach 13–14×.
+Among 13 conditions tested, only reverb meaningfully degrades WER. Noise, codecs, and mic profiles stay within 1.5× of clean across every model. Hall reverb multiplies clean WER by 4–6×; office reverb reaches 6–14× despite receiving half the wet signal (5% vs 10%). Dense early reflections in small rooms smear phoneme boundaries more than the diffuse tail of a large space. Cohere handles reverb best at 6× (office), where Parakeet and Qwen3 reach 13–14×.
 
 ## Conditions
 
