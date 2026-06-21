@@ -15,12 +15,9 @@ Existing benchmarks (Open ASR Leaderboard, LibriSpeech, FLEURS) report word erro
 | Qwen3-ASR | 1.7B | 4.6% | 2.0% | 11.3% | 25.5% |
 | Whisper Large V3 | 1.55B | 5.5% | 3.0% | 15.1% | 25.7% |
 
-**What stands out:**
+**Findings:**
 
-- Noise, codecs, and mic roll-off stay within about a point of clean WER across every model. ASR has largely solved these — they're not where production breaks.
-- Reverb is. Office reverb pushes Whisper and Qwen3 to ~25% WER, roughly 8–13× their clean baseline. Parakeet hits 23%.
-- Office was the harder reverb despite getting *less* wet signal than hall (5% vs 10%). That tracks with acoustics: small rooms produce dense, closely-spaced early reflections that smear phoneme boundaries, which is harder to decode than the diffuse tail of a large space.
-- Cohere is the outlier. It holds 6% hall / 9.6% office where the rest land at 8–15% / 23–26% — robust to exactly the condition that breaks the others.
+Among 13 conditions tested, only reverb meaningfully degrades WER. Noise, codecs, and mic profiles stay within 1.5× of clean across every model. Hall reverb multiplies clean WER by 4–6×; office reverb reaches 6–14× despite using half the wet signal (5% vs 10%). Dense early reflections in small rooms smear phoneme boundaries more than the diffuse tail of a large space. Cohere handles reverb best at 6× (office), where Parakeet and Qwen3 reach 13–14×.
 
 ## Conditions
 
