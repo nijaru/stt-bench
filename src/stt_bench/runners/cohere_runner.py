@@ -79,18 +79,22 @@ class CohereRunner(BaseRunner):
             audio,
             sampling_rate=16000,
             return_tensors="pt",
-        )
-        inputs = {
-            k: v.to(self._model.device, dtype=self._dtype)
-            if v.is_floating_point()
-            else v.to(self._model.device)
-            for k, v in inputs.items()
-        }
+            language="en",
+        ).to(self._model.device)
+        audio_chunk_index = inputs.get("audio_chunk_index")
+        inputs.to(self._model.device, dtype=self._model.dtype)
 
         with torch.no_grad():
-            generated_ids = self._model.generate(**inputs)
+            generated_ids = self._model.generate(**inputs, max_new_tokens=256)
 
-        transcription = self._processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        transcription = self._processor.decode(
+            generated_ids,
+            skip_special_tokens=True,
+            audio_chunk_index=audio_chunk_index,
+            language="en",
+        )
+        if isinstance(transcription, list):
+            transcription = transcription[0] if transcription else ""
         elapsed = time.monotonic() - start
 
         return Hypothesis(
