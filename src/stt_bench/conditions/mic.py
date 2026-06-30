@@ -106,7 +106,10 @@ def apply_mic_profile(
 
     # Apply bandpass
     filtered = apply_bandpass(
-        speech, low_freq=low_freq, high_freq=high_freq, sample_rate=sample_rate,
+        speech,
+        low_freq=low_freq,
+        high_freq=high_freq,
+        sample_rate=sample_rate,
     )
 
     # Apply mid-frequency resonance if specified

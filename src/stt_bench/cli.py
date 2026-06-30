@@ -17,7 +17,9 @@ def main():
 
 @main.command()
 @click.option(
-    "--output-dir", default="~/.cache/stt-bench/assets", type=click.Path(),
+    "--output-dir",
+    default="~/.cache/stt-bench/assets",
+    type=click.Path(),
     help="Directory to store downloaded assets.",
 )
 @click.option("--n-noise", default=50, type=int, help="Number of noise files to download.")
@@ -39,7 +41,9 @@ def fetch_assets(output_dir, n_noise, n_rir):
 @click.option("--max-duration", default=30.0, type=float, help="Max clip duration (seconds).")
 @click.option("--seed", default=42, type=int, help="Random seed.")
 @click.option(
-    "--output", default="data/manifests/sources-v0.jsonl", type=click.Path(),
+    "--output",
+    default="data/manifests/sources-v0.jsonl",
+    type=click.Path(),
     help="Output manifest path.",
 )
 def select_sources(n_clips, min_duration, max_duration, seed, output):
@@ -60,23 +64,32 @@ def select_sources(n_clips, min_duration, max_duration, seed, output):
 
 @main.command()
 @click.option(
-    "--manifest", required=True, type=click.Path(exists=True),
+    "--manifest",
+    required=True,
+    type=click.Path(exists=True),
     help="Source manifest JSONL.",
 )
 @click.option(
-    "--output", required=True, type=click.Path(),
+    "--output",
+    required=True,
+    type=click.Path(),
     help="Output path for condition manifest.",
 )
 @click.option(
-    "--conditions", default=None,
+    "--conditions",
+    default=None,
     help="Comma-separated condition IDs (default: all v0).",
 )
 @click.option(
-    "--output-dir", default="data/generated", type=click.Path(),
+    "--output-dir",
+    default="data/generated",
+    type=click.Path(),
     help="Directory for generated audio.",
 )
 @click.option(
-    "--assets-dir", default="~/.cache/stt-bench/assets", type=click.Path(),
+    "--assets-dir",
+    default="~/.cache/stt-bench/assets",
+    type=click.Path(),
     help="Directory with noise/RIR assets.",
 )
 @click.option("--seed", default=42, type=int, help="Random seed.")
@@ -99,7 +112,12 @@ def prepare(manifest, output, conditions, output_dir, assets_dir, seed):
     click.echo(f"Output: {output_dir_path}")
 
     variants = generate_condition_manifest(
-        manifest_path, output_path, cond_ids, output_dir_path, assets_dir_path, seed=seed,
+        manifest_path,
+        output_path,
+        cond_ids,
+        output_dir_path,
+        assets_dir_path,
+        seed=seed,
     )
 
     click.echo(f"Generated {len(variants)} variants -> {output}")
@@ -107,13 +125,17 @@ def prepare(manifest, output, conditions, output_dir, assets_dir, seed):
 
 @main.command()
 @click.option(
-    "--manifest", required=True, type=click.Path(exists=True),
+    "--manifest",
+    required=True,
+    type=click.Path(exists=True),
     help="Condition manifest JSONL.",
 )
 @click.option("--model", required=True, help="Model ID (e.g. openai/whisper-large-v3).")
 @click.option("--output", required=True, type=click.Path(), help="Output directory.")
 @click.option(
-    "--audio-dir", default="data/generated", type=click.Path(),
+    "--audio-dir",
+    default="data/generated",
+    type=click.Path(),
     help="Directory containing generated audio files.",
 )
 @click.option("--device", default="auto", help="Device: auto, cpu, cuda, mps.")
@@ -157,17 +179,22 @@ def run(manifest, model, output, audio_dir, device):
 
 @main.command()
 @click.option(
-    "--results-dir", required=True, type=click.Path(exists=True),
+    "--results-dir",
+    required=True,
+    type=click.Path(exists=True),
     help="Directory with hypothesis JSONL.",
 )
 @click.option(
-    "--manifest", required=True, type=click.Path(exists=True),
+    "--manifest",
+    required=True,
+    type=click.Path(exists=True),
     help="Condition manifest JSONL.",
 )
 def score(results_dir, manifest):
     """Score precomputed hypotheses against references."""
     from .manifest import ConditionVariant, Hypothesis, iter_manifest, read_manifest
-    from .scoring.score import aggregate_scores, score_sample
+    from .reports.summary import generate_summary_md
+    from .scoring.score import score_sample
 
     results_path = Path(results_dir)
     manifest_path = Path(manifest)
@@ -199,35 +226,8 @@ def score(results_dir, manifest):
         for s in scores:
             f.write(s.to_json() + "\n")
 
-    model_id = hypotheses[0].model_id if hypotheses else "unknown"
-    condition_ids = sorted(set(v.condition_id for v in variants.values()))
-
-    summary_lines = [f"# STT-Bench Results: {model_id}", ""]
-    summary_lines.append(f"**Samples scored:** {len(scores)}")
-    summary_lines.append("")
-
-    overall = aggregate_scores(scores, model_id)
-    summary_lines.append(f"**Overall WER:** {overall.macro_wer:.1%}")
-    summary_lines.append(f"**Overall CER:** {overall.macro_cer:.1%}")
-    summary_lines.append("")
-
-    summary_lines.append("## Per-condition WER")
-    summary_lines.append("")
-    summary_lines.append("| Condition | Samples | WER | CER | Worst WER |")
-    summary_lines.append("|-----------|---------|-----|-----|-----------|")
-
-    for cond_id in condition_ids:
-        agg = aggregate_scores(scores, model_id, condition_id=cond_id)
-        summary_lines.append(
-            f"| {cond_id} | {agg.n_samples} "
-            f"| {agg.macro_wer:.1%} | {agg.macro_cer:.1%} "
-            f"| {agg.worst_wer:.1%} |"
-        )
-
-    summary_lines.append("")
-
     summary_path = results_path / "summary.md"
-    summary_path.write_text("\n".join(summary_lines))
+    generate_summary_md(scores_path, output_path=summary_path)
 
     click.echo(f"Scored {len(scores)} samples -> {scores_path}")
     click.echo(f"Summary -> {summary_path}")
@@ -235,11 +235,15 @@ def score(results_dir, manifest):
 
 @main.command()
 @click.option(
-    "--results-dir", required=True, type=click.Path(exists=True),
-    help="Directory with score JSONL.",
+    "--results-dir",
+    required=True,
+    type=click.Path(exists=True),
+    help="Directory with scores.jsonl.",
 )
 def report(results_dir):
-    """Generate tables and plots from scores."""
+    """Generate summary report from scored results."""
+    from .reports.summary import generate_summary_md
+
     results_path = Path(results_dir)
     scores_path = results_path / "scores.jsonl"
 
@@ -247,9 +251,9 @@ def report(results_dir):
         click.echo(f"No scores.jsonl found in {results_dir}", err=True)
         sys.exit(1)
 
-    click.echo(f"Generating report from {scores_path}")
-    # TODO: implement plots (matplotlib/plotly)
-    click.echo("Report generation not yet implemented.")
+    summary_path = results_path / "summary.md"
+    generate_summary_md(scores_path, output_path=summary_path)
+    click.echo(f"Report generated -> {summary_path}")
 
 
 if __name__ == "__main__":

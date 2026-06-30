@@ -95,28 +95,6 @@ class Hypothesis:
         return cls(**json.loads(line))
 
 
-@dataclass
-class SampleScore:
-    """Score for a single hypothesis."""
-
-    variant_id: str
-    model_id: str
-    wer: float
-    cer: float
-    insertions: int
-    deletions: int
-    substitutions: int
-    ref_normalized: str
-    hyp_normalized: str
-
-    def to_json(self) -> str:
-        return json.dumps(asdict(self), ensure_ascii=False)
-
-    @classmethod
-    def from_json(cls, line: str) -> SampleScore:
-        return cls(**json.loads(line))
-
-
 # --- Manifest I/O ---
 
 

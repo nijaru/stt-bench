@@ -47,6 +47,7 @@ class WhisperRunner(BaseRunner):
         audio, sr = sf.read(str(audio_path), dtype="float32")
         if sr != 16000:
             import librosa
+
             audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
 
         start = time.monotonic()

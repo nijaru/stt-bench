@@ -26,8 +26,8 @@ def apply_mulaw_codec(
     # Apply mu-law companding (256 levels, matching G.711)
     mu = 255
     speech_abs = speech_8k.abs()
-    encoded = torch.sign(speech_8k) * torch.log1p(mu * speech_abs) / torch.log1p(
-        torch.tensor(float(mu))
+    encoded = (
+        torch.sign(speech_8k) * torch.log1p(mu * speech_abs) / torch.log1p(torch.tensor(float(mu)))
     )
 
     # Quantize to 8-bit

@@ -92,8 +92,7 @@ class BaseRunner(RunnerProtocol):
             return path
 
         raise FileNotFoundError(
-            f"Audio not found for {variant.variant_id}. "
-            f"Looked in: {audio_dir}, data/generated/"
+            f"Audio not found for {variant.variant_id}. Looked in: {audio_dir}, data/generated/"
         )
 
 

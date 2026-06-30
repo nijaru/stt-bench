@@ -103,7 +103,7 @@ def aggregate_scores(
 ) -> AggregateScore:
     """Aggregate sample scores into summary statistics."""
     if condition_id is not None:
-        scores = [s for s in scores if s.variant_id.endswith(f"__{condition_id}")]
+        scores = [s for s in scores if s.variant_id.split("__", 1)[1] == condition_id]
 
     if not scores:
         return AggregateScore(
