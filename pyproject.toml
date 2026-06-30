@@ -18,13 +18,13 @@ dependencies = [
 
 [project.optional-dependencies]
 audio = [
-    "torch>=2.3",
-    "torchaudio>=2.3",
+    "torch>=2.5",
+    "torchaudio>=2.5",
 ]
 local = [
     "stt-bench[audio]",
-    "transformers>=4.41",
-    "accelerate>=0.30",
+    "transformers>=4.47",
+    "accelerate>=0.34",
 ]
 api = [
     "cohere>=5.5",

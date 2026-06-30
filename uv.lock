@@ -2778,7 +2778,7 @@ local = [
 
 [package.metadata]
 requires-dist = [
-    { name = "accelerate", marker = "extra == 'local'", specifier = ">=0.30" },
+    { name = "accelerate", marker = "extra == 'local'", specifier = ">=0.34" },
     { name = "click", specifier = ">=8.1" },
     { name = "cohere", marker = "extra == 'api'", specifier = ">=5.5" },
     { name = "datasets", specifier = ">=2.19" },
@@ -2794,9 +2794,9 @@ requires-dist = [
     { name = "soundfile", specifier = ">=0.12" },
     { name = "stt-bench", extras = ["audio"], marker = "extra == 'local'" },
     { name = "stt-bench", extras = ["local", "api", "dev", "effects"], marker = "extra == 'all'" },
-    { name = "torch", marker = "extra == 'audio'", specifier = ">=2.3" },
-    { name = "torchaudio", marker = "extra == 'audio'", specifier = ">=2.3" },
-    { name = "transformers", marker = "extra == 'local'", specifier = ">=4.41" },
+    { name = "torch", marker = "extra == 'audio'", specifier = ">=2.5" },
+    { name = "torchaudio", marker = "extra == 'audio'", specifier = ">=2.5" },
+    { name = "transformers", marker = "extra == 'local'", specifier = ">=4.47" },
 ]
 provides-extras = ["audio", "local", "api", "dev", "effects", "all"]
 
