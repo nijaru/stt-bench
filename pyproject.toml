@@ -18,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 audio = [
-    "torch>=2.5",
+    "torch>=2.12.1",
     "torchaudio>=2.5",
 ]
 local = [
